@@ -40,7 +40,7 @@ const handleSubmit = async (e: any) => {
         className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md space-y-6"
       >
         <h2 className="text-2xl font-bold text-center text-blue-600">
-          Thông Tin Người Chơi
+          Thông Tin
         </h2>
         <div>
           <label className="block text-gray-700 font-semibold mb-1">
