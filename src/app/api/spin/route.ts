@@ -5,7 +5,7 @@ import { tsrTopup } from '@/lib/tsr'; // nhớ import
 
 export async function POST(req: Request) {
   try {
-    const { phone, cardCode, cardSerial } = await req.json();
+    const { phone} = await req.json();
     if (!phone) {
       return NextResponse.json({ success: false, message: 'Thiếu số điện thoại' }, { status: 400 });
     }

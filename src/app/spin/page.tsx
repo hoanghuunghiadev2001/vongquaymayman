@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Sparkles, Gift, Trophy, Star } from "lucide-react"
 import { PrizeModal } from "@/components/modal-prizes"
+import { AlreadySpunModal } from "@/components/alreadySpunModal"
 
 type Prize = {
   id: number
@@ -18,6 +19,8 @@ export default function PrizeSpinClient() {
   const searchParams = useSearchParams()
   const phone = searchParams.get("phone")
   const [openModalPrize, setOpenModalPrize] = useState(false) 
+  const [openAlreadySpunModal, setAlreadySpunModal] = useState(false) 
+
 
 
   // Load danh sách phần thưởng
@@ -32,7 +35,7 @@ export default function PrizeSpinClient() {
   const spin = async () => {
  const spun = localStorage.getItem('hasSpun');
       if (spun === 'true') {
-    alert('⚠️ Thiết bị này đã quay rồi!');
+        setAlreadySpunModal(true)
     return;
   }
     if (spinning || !phone) return
@@ -50,12 +53,12 @@ export default function PrizeSpinClient() {
     // ✅ Nếu đã quay → hiển thị cảnh báo và dừng lại
     if (data.alreadySpun) {
       setSpinning(false)
-      alert(`⚠️ ${data.message || "Bạn đã quay rồi!"}`)
+           setAlreadySpunModal(true)
+
       return
     }
 
     const prizeId = data.prizeId
-    const prizeName = data.prize
     const index = prizes.findIndex((p) => p.id === prizeId)
     if (index === -1) return
 
@@ -225,7 +228,7 @@ export default function PrizeSpinClient() {
           </div>
         )}
         <PrizeModal isOpen={openModalPrize} onClose={()=>setOpenModalPrize(false)} prize={prizes[resultIndex ?? 0] ?? ''}/>
-
+        <AlreadySpunModal isOpen={openAlreadySpunModal} message="ádasdasd" onClose={()=>setAlreadySpunModal(false)}/>
         {/* Instructions */}
         <div className="mt-8 text-center">
           <p className="text-gray-300 text-lg">

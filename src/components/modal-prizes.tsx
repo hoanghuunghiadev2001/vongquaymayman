@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Gift, X, Trophy, Sparkles, Star } from "lucide-react"
+import { X, Trophy, Sparkles, Star } from "lucide-react"
 
 type Prize = {
   id: number
