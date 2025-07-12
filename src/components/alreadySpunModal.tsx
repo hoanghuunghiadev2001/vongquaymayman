@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { X, AlertCircle, Clock, Calendar } from "lucide-react"
+import { X, AlertCircle, Clock } from "lucide-react"
 
 interface AlreadySpunModalProps {
   isOpen: boolean
@@ -9,7 +9,7 @@ interface AlreadySpunModalProps {
   message: string
 }
 
-export function AlreadySpunModal({ isOpen, onClose, message }: AlreadySpunModalProps) {
+export function AlreadySpunModal({ isOpen, onClose }: AlreadySpunModalProps) {
   const [animate, setAnimate] = useState(false)
 
   useEffect(() => {

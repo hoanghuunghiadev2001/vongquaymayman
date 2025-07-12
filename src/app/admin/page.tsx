@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import { useEffect, useState } from 'react';
 
@@ -101,7 +102,6 @@ export default function AdminPage() {
                       type="number"
                       value={item.ratio}
                       onChange={(e) => {
-                        const newRatio = e.target.value;
                         setPrizes((prev) =>
                           prev.map((p) =>
                             p.id === item.id ? { ...p, ratio: Number(e.target.value) } : p
