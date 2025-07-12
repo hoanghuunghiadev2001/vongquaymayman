@@ -7,21 +7,31 @@ export default function Home() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const router = useRouter();
+  const [err, setErr] = useState('');
 
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
-    const res = await fetch('/api/check-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone }),
-    });
-    const data = await res.json();
-    if (data.allowed) {
-      router.push(`/spin?phone=${phone}`);
-    } else {
-      alert(data.message);
-    }
-  };
+const handleSubmit = async (e: any) => {
+  e.preventDefault();
+
+  // Regex kiểm tra định dạng số điện thoại
+  const phoneRegex = /^0\d{9,10}$/;
+  if (!phoneRegex.test(phone)) {
+    setErr('Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng 10 hoặc 11 số bắt đầu bằng 0.');
+    return;
+  }
+
+  const res = await fetch('/api/check-user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, phone }),
+  });
+  const data = await res.json();
+
+  if (data.allowed) {
+    router.push(`/spin?phone=${phone}`);
+  } else {
+    setErr(data.message);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300">
@@ -52,13 +62,15 @@ export default function Home() {
           <input
             type="tel"
             required
-            pattern="[0-9]{10,11}"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
             placeholder="Nhập số điện thoại"
           />
         </div>
+        {err && <p className="text-red-500 text-sm text-center italic">{err}</p>}
+        
+        {/* Submit button */}
         <button
           type="submit"
           className="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg transition duration-200"

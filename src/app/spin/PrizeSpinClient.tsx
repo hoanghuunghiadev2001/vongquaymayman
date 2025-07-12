@@ -132,7 +132,7 @@ export default function PrizeSpinClient() {
 
           <div className="relative bg-white/10 backdrop-blur-lg p-8 rounded-3xl shadow-2xl border border-white/20">
             {/* Prize Grid */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
               {prizes.map((prize, i) => (
                 <div
                   key={prize.id}

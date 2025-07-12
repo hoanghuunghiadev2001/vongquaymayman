@@ -105,7 +105,7 @@ export function PrizeModal({ isOpen, onClose, prize }: PrizeModalProps) {
         {/* Action buttons */}
 
         <div className="mt-6 text-sm text-gray-500 bg-gray-100 rounded-lg p-3">
-          💡 Liên hệ hotline để nhận thưởng hoặc quay tiếp để có cơ hội trúng thêm!
+          💡 Liên hệ hotline để nhận thưởng.
         </div>
 
         {/* Floating elements */}
