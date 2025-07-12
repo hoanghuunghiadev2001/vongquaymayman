@@ -1,0 +1,2 @@
+# Bỏ qua toàn bộ thư mục Prisma Client auto-generated
+src/generated/prisma/*
