@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react"; // Cần cài: npm i lucide-react
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -19,7 +22,7 @@ export default function LoginPage() {
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const newErrors: typeof errors = {};
@@ -40,10 +43,17 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
-      alert("Đăng nhập thành công!");
-    }, 1000);
+  const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (res.ok) {
+      router.push('/admin');
+    } else {
+
+    }
   };
 
   useEffect(() => {
@@ -142,7 +152,6 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 className="w-full mt-4 cursor-pointer"
-                disabled={loading}
               >
                 {loading ? "Đang đăng nhập..." : "Đăng nhập"}
               </Button>

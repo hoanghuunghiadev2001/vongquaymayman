@@ -1,15 +1,54 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql" // hoặc postgresql/sqlite tùy bạn
   url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           Int     @id @default(autoincrement())
+  username     String  @unique
+  passwordHash String
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   // Đã mã hóa bằng AES
+  phone     String   @unique // Đã mã hóa
+  hasSpun   Boolean  @default(false)
+  prize     String?  // Phần thưởng trúng
+  createdAt DateTime @default(now())
+    deviceKey String?  @unique
+}
+
+model PrizeConfig {
+  id        Int      @id @default(autoincrement())
+  name      String   // Tên phần thưởng
+  ratio     Float    // Tỷ lệ trúng (VD: 10 = 10%)
+  createdAt DateTime @default(now())
+}
+
+model SpinHistory {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  deviceKey String   @unique
+  ip        String?
+  userAgent String?
+  prize     String?
+  createdAt DateTime @default(now())
+}
+model CardTopup {
+  id          Int      @id @default(autoincrement())
+  phone       String
+  provider    String
+  amount      Int
+  code        String
+  serial      String
+  requestId   String   @unique
+  status      Int
+  message     String?
+  transId     String?
+  createdAt   DateTime @default(now())
 }
