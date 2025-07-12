@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation"
 import { Sparkles, Gift, Trophy, Star } from "lucide-react"
 import { PrizeModal } from "@/components/modal-prizes"
 import { AlreadySpunModal } from "@/components/alreadySpunModal"
+import { LoadingModal } from "@/components/modalLoading"
 
 type Prize = {
   id: number
@@ -17,8 +18,9 @@ export default function PrizeSpinClient() {
   const [spinning, setSpinning] = useState(false)
   const searchParams = useSearchParams()
   const phone = searchParams.get("phone")
-  const [openModalPrize, setOpenModalPrize] = useState(false) 
-  const [openAlreadySpunModal, setAlreadySpunModal] = useState(false) 
+  const [openModalPrize, setOpenModalPrize] = useState(false)
+  const [openAlreadySpunModal, setAlreadySpunModal] = useState(false)
+  const [loading, setLoading] = useState(false);
 
 
 
@@ -31,49 +33,80 @@ export default function PrizeSpinClient() {
       })
   }, [])
 
-  const spin = async () => {
- const spun = localStorage.getItem('hasSpun');
-      if (spun === 'true') {
-        setAlreadySpunModal(true)
+const spin = async () => {
+  const spun = localStorage.getItem('hasSpun');
+  if (spun === 'true') {
+    setAlreadySpunModal(true);
     return;
   }
-    if (spinning || !phone) return
-    setSpinning(true)
-    setResultIndex(null)
 
+  if (spinning || !phone) return;
+
+  const deviceKey = localStorage.getItem('deviceKey');
+  if (!deviceKey) {
+    alert('Thiếu deviceKey. Vui lòng tải lại trang và thử lại.');
+    return;
+  }
+
+  setSpinning(true);
+  setResultIndex(null);
+  setLoading(true);
+
+  try {
     const res = await fetch("/api/spin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone }),
-    })
+      body: JSON.stringify({ phone, deviceKey }),
+    });
 
-    const data = await res.json()
+    const data = await res.json();
 
-    // ✅ Nếu đã quay → hiển thị cảnh báo và dừng lại
-    if (data.alreadySpun) {
-      setSpinning(false)
-           setAlreadySpunModal(true)
-
-      return
+    // ❌ Nếu lỗi server
+    if (!res.ok) {
+      alert(data.message || 'Lỗi máy chủ. Vui lòng thử lại sau.');
+      setSpinning(false);
+      return;
     }
 
-    const prizeId = data.prizeId
-    const index = prizes.findIndex((p) => p.id === prizeId)
-    if (index === -1) return
+    // ✅ Nếu đã quay
+    if (data.alreadySpun) {
+      setSpinning(false);
+      setAlreadySpunModal(true);
+      return;
+    }
 
-    let current = 0
-    const total = 3 * prizes.length + index
+    const prizeId = data.prizeId;
+    const index = prizes.findIndex((p) => p.id === prizeId);
+    if (index === -1) {
+      alert('Phần thưởng không tồn tại.');
+      setSpinning(false);
+      return;
+    }
+
+    // Hiệu ứng quay vòng
+    let current = 0;
+    const total = 3 * prizes.length + index;
     const interval = setInterval(() => {
-      setHighlight(current % prizes.length)
-      current++
+      setHighlight(current % prizes.length);
+      current++;
       if (current > total) {
-        clearInterval(interval)
-        setResultIndex(index)
-        setSpinning(false)
+        clearInterval(interval);
+        setResultIndex(index);
+        setSpinning(false);
       }
-    }, 100)
-     localStorage.setItem('hasSpun', 'true');
+    }, 100);
+
+    // Lưu trạng thái đã quay
+    localStorage.setItem('hasSpun', 'true');
+  } catch (error) {
+    console.error('Lỗi khi gọi API /spin:', error);
+    alert('Không thể kết nối tới máy chủ. Vui lòng thử lại sau.');
+    setSpinning(false);
+  } finally {
+    setLoading(false);
   }
+};
+
 
   const prizeColors = [
     "from-red-500 to-red-600",
@@ -90,7 +123,7 @@ export default function PrizeSpinClient() {
     if (resultIndex !== null) {
       setOpenModalPrize(true)
     }
-  },[resultIndex])
+  }, [resultIndex])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
@@ -138,10 +171,9 @@ export default function PrizeSpinClient() {
                   key={prize.id}
                   className={`
                     relative rounded-2xl border-2 text-center px-4 py-6 transition-all duration-200 ease-in-out transform
-                    ${
-                      highlight === i
-                        ? `bg-gradient-to-br ${prizeColors[i % prizeColors.length]} text-white font-extrabold scale-110 shadow-2xl ring-4 ring-yellow-400 animate-pulse`
-                        : "bg-white/90 hover:bg-white text-gray-800 hover:scale-105 shadow-lg border-gray-200"
+                    ${highlight === i
+                      ? `bg-gradient-to-br ${prizeColors[i % prizeColors.length]} text-white font-extrabold scale-110 shadow-2xl ring-4 ring-yellow-400 animate-pulse`
+                      : "bg-white/90 hover:bg-white text-gray-800 hover:scale-105 shadow-lg border-gray-200"
                     }
                   `}
                 >
@@ -170,10 +202,9 @@ export default function PrizeSpinClient() {
                 disabled={spinning}
                 className={`
                   w-full py-4 rounded-2xl font-bold text-xl text-white transition-all duration-300 transform relative overflow-hidden
-                  ${
-                    spinning
-                      ? "bg-gray-500 cursor-not-allowed scale-95"
-                      : "bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 hover:from-pink-600 hover:via-red-600 hover:to-yellow-600 hover:scale-105 shadow-2xl hover:shadow-pink-500/50"
+                  ${spinning
+                    ? "bg-gray-500 cursor-not-allowed scale-95"
+                    : "bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 hover:from-pink-600 hover:via-red-600 hover:to-yellow-600 hover:scale-105 shadow-2xl hover:shadow-pink-500/50"
                   }
                 `}
               >
@@ -226,8 +257,9 @@ export default function PrizeSpinClient() {
             </div>
           </div>
         )}
-        <PrizeModal isOpen={openModalPrize} onClose={()=>setOpenModalPrize(false)} prize={prizes[resultIndex ?? 0] ?? ''}/>
-        <AlreadySpunModal isOpen={openAlreadySpunModal} message="ádasdasd" onClose={()=>setAlreadySpunModal(false)}/>
+        <PrizeModal isOpen={openModalPrize} onClose={() => setOpenModalPrize(false)} prize={prizes[resultIndex ?? 0] ?? ''} />
+        <AlreadySpunModal isOpen={openAlreadySpunModal} message="ádasdasd" onClose={() => setAlreadySpunModal(false)} />
+               <LoadingModal isOpen={loading}/>
         {/* Instructions */}
         <div className="mt-8 text-center">
           <p className="text-gray-300 text-lg">

@@ -31,13 +31,13 @@ model PrizeConfig {
 }
 
 model SpinHistory {
-  id        Int      @id @default(autoincrement())
-  phone     String
-  deviceKey String   @unique
-  ip        String?
-  userAgent String?
-  prize     String?
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  phone      String
+  prize      String
+  ip         String?
+  userAgent  String?
+  deviceKey  String?  // ← không có @unique
+  createdAt  DateTime @default(now())
 }
 model CardTopup {
   id          Int      @id @default(autoincrement())

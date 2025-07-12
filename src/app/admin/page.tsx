@@ -9,8 +9,30 @@ export default function AdminPage() {
     ratio: number;
   };
 
+  type User = {
+    id: number;
+    name: string;
+    phone: string;
+    prize: string | null;
+    hasSpun: boolean;
+    createdAt: string;
+  };
+
+  type PrizeStat = {
+    name: string;
+    ratio: number;
+    used: number;
+    remaining: number;
+  };
+
   const [prizes, setPrizes] = useState<Prize[]>([]);
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [stats, setStats] = useState<{
+    totalUsers: number;
+    winners: number;
+    percent: number;
+    prizeStats: PrizeStat[];
+  } | null>(null);
   const [name, setName] = useState('');
   const [ratio, setRatio] = useState('');
 
@@ -23,7 +45,13 @@ export default function AdminPage() {
   const fetchUsers = async () => {
     const res = await fetch('/api/admin/users');
     const data = await res.json();
-    setUsers(data);
+    setUsers(data.users);
+    setStats({
+      totalUsers: data.totalUsers,
+      winners: data.winners,
+      percent: data.percent,
+      prizeStats: data.prizeStats,
+    });
   };
 
   const addPrize = async () => {
@@ -47,9 +75,29 @@ export default function AdminPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-4 text-center">🎛️ Quản lý phần thưởng</h1>
+      <h1 className="text-3xl font-bold mb-4 text-center">🎛️ Quản lý phần thưởng & người dùng</h1>
 
+      {/* Thống kê tổng quan */}
+      {stats && (
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+          <div className="bg-white shadow rounded p-4 border">
+            <div className="text-sm text-gray-500">Tổng số người tham gia</div>
+            <div className="text-2xl font-bold text-blue-600">{stats.totalUsers}</div>
+          </div>
+          <div className="bg-white shadow rounded p-4 border">
+            <div className="text-sm text-gray-500">Số người trúng thưởng</div>
+            <div className="text-2xl font-bold text-green-600">{stats.winners}</div>
+          </div>
+          <div className="bg-white shadow rounded p-4 border">
+            <div className="text-sm text-gray-500">% trúng thưởng</div>
+            <div className="text-2xl font-bold text-purple-600">{stats.percent}%</div>
+          </div>
+        </div>
+      )}
+
+      {/* Giao diện phần thưởng & người dùng */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+        {/* Quản lý phần thưởng */}
         <div>
           <input
             className="w-full p-2 mb-2 border rounded"
@@ -82,7 +130,7 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody>
-              {prizes.map((item: any, i) => (
+              {prizes.map((item, i) => (
                 <tr key={item.id} className="text-center">
                   <td className="p-2 border">{i + 1}</td>
                   <td className="p-2 border">
@@ -147,11 +195,12 @@ export default function AdminPage() {
           </table>
         </div>
 
+        {/* Danh sách người dùng */}
         <div>
           <h2 className="text-xl font-semibold mb-2">🧑‍💼 Danh sách người dùng</h2>
           <table className="w-full border text-sm">
             <thead>
-              <tr className="bg-gray-200">
+              <tr className="bg-gray-200 text-center">
                 <th className="p-2 border">Tên</th>
                 <th className="p-2 border">SĐT</th>
                 <th className="p-2 border">Phần thưởng</th>
@@ -159,7 +208,7 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user: any) => (
+              {users.map((user) => (
                 <tr key={user.id} className="text-center">
                   <td className="p-2 border">{user.name}</td>
                   <td className="p-2 border">{user.phone}</td>
@@ -169,6 +218,31 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
+
+          {/* Thống kê phần thưởng đã trúng */}
+          {stats && (
+            <div className="mt-6">
+              <h2 className="text-xl font-semibold mb-2">📊 Thống kê phần thưởng đã trúng</h2>
+              <table className="w-full border text-sm">
+                <thead>
+                  <tr className="bg-gray-200 text-center">
+                    <th className="p-2 border">Tên</th>
+                    <th className="p-2 border">Tỷ lệ (%)</th>
+                    <th className="p-2 border">Đã trúng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.prizeStats.map((item, i) => (
+                    <tr key={i} className="text-center">
+                      <td className="p-2 border">{item.name}</td>
+                      <td className="p-2 border">{item.ratio}</td>
+                      <td className="p-2 border text-green-700 font-semibold">{item.used}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -18,7 +18,7 @@ export default function NotFoundPage() {
         </h1>
         <p className="text-gray-400 mt-2 mb-6">
           Xin lỗi, chúng tôi không tìm thấy nội dung bạn đang tìm.
-        </p>
+      </p>
 
         <Button asChild>
           <Link href="/">Quay về trang chủ</Link>

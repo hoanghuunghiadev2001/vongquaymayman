@@ -2,39 +2,63 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { v4 as uuidv4 } from 'uuid';
+import { LoadingModal } from '@/components/modalLoading';
+
 
 export default function Home() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const router = useRouter();
   const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
 
-const handleSubmit = async (e: any) => {
-  e.preventDefault();
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErr('');
+    setLoading(true);
 
-  // Regex kiểm tra định dạng số điện thoại
-  const phoneRegex = /^0\d{9,10}$/;
-  if (!phoneRegex.test(phone)) {
-    setErr('Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng 10 hoặc 11 số bắt đầu bằng 0.');
-    return;
-  }
+    try {
+      let deviceKey = localStorage.getItem('deviceKey');
+      if (!deviceKey) {
+        deviceKey = uuidv4();
+        localStorage.setItem('deviceKey', deviceKey);
+      }
 
-  const res = await fetch('/api/check-user', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, phone }),
-  });
-  const data = await res.json();
+      // ✅ Kiểm tra định dạng số điện thoại Việt Nam: 10–11 số bắt đầu bằng 0
+      const phoneRegex = /^0\d{9,10}$/;
+      if (!phoneRegex.test(phone)) {
+        setErr('Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng 10 hoặc 11 số bắt đầu bằng 0.');
+        setLoading(false);
+        return;
+      }
 
-  if (data.allowed) {
-    router.push(`/spin?phone=${phone}`);
-  } else {
-    setErr(data.message);
-  }
-};
+      const res = await fetch('/api/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErr(data.message || 'Đã có lỗi xảy ra từ máy chủ.');
+      } else if (data.allowed) {
+        router.push(`/spin?phone=${phone}`);
+      } else {
+        setErr(data.message || 'Bạn không được phép tham gia.');
+      }
+    } catch (error) {
+      console.error('Lỗi khi gọi API:', error);
+      setErr('Không thể kết nối tới máy chủ. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300">
+      <LoadingModal isOpen={loading}/>
       <form
         onSubmit={handleSubmit}
         className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md space-y-6"
@@ -69,7 +93,7 @@ const handleSubmit = async (e: any) => {
           />
         </div>
         {err && <p className="text-red-500 text-sm text-center italic">{err}</p>}
-        
+
         {/* Submit button */}
         <button
           type="submit"
