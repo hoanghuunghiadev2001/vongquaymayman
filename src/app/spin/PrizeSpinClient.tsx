@@ -34,11 +34,6 @@ export default function PrizeSpinClient() {
   }, [])
 
 const spin = async () => {
-  const spun = localStorage.getItem('hasSpun');
-  if (spun === 'true') {
-    setAlreadySpunModal(true);
-    return;
-  }
 
   if (spinning || !phone) return;
 
@@ -163,14 +158,14 @@ const spin = async () => {
           {/* Outer glow effect */}
           <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/30 to-pink-500/30 rounded-3xl blur-xl animate-pulse" />
 
-          <div className="relative bg-white/10 backdrop-blur-lg p-8 rounded-3xl shadow-2xl border border-white/20">
+          <div className="w-[80vw] relative bg-white/10 backdrop-blur-lg p-8 rounded-3xl shadow-2xl border border-white/20">
             {/* Prize Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-10 mb-6">
               {prizes.map((prize, i) => (
                 <div
                   key={prize.id}
                   className={`
-                    relative rounded-2xl border-2 text-center px-4 py-6 transition-all duration-200 ease-in-out transform
+                    flex-shrink-0 relative rounded-2xl border-2 text-center px-4 py-6 transition-all duration-200 ease-in-out transform
                     ${highlight === i
                       ? `bg-gradient-to-br ${prizeColors[i % prizeColors.length]} text-white font-extrabold scale-110 shadow-2xl ring-4 ring-yellow-400 animate-pulse`
                       : "bg-white/90 hover:bg-white text-gray-800 hover:scale-105 shadow-lg border-gray-200"

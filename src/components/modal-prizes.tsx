@@ -90,7 +90,7 @@ export function PrizeModal({ isOpen, onClose, prize }: PrizeModalProps) {
           <h2 className="text-4xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-3">
             CHÚC MỪNG!
           </h2>
-          <p className="text-xl text-gray-600 font-medium">Bạn đã trúng thưởng lớn!</p>
+          <p className="text-xl text-gray-600 font-medium">Bạn đã trúng thưởng!</p>
         </div>
 
         {/* Prize display */}
@@ -105,7 +105,7 @@ export function PrizeModal({ isOpen, onClose, prize }: PrizeModalProps) {
         {/* Action buttons */}
 
         <div className="mt-6 text-sm text-gray-500 bg-gray-100 rounded-lg p-3">
-          💡 Liên hệ hotline để nhận thưởng.
+          💡 Liên hệ bộ phận để nhận thưởng.
         </div>
 
         {/* Floating elements */}

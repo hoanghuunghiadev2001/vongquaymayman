@@ -3,52 +3,55 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql" // hoặc postgresql/sqlite tùy bạn
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model Admin {
-  id           Int     @id @default(autoincrement())
-  username     String  @unique
+  id           Int    @id @default(autoincrement())
+  username     String @unique
   passwordHash String
 }
 
 model User {
   id        Int      @id @default(autoincrement())
-  name      String   // Đã mã hóa bằng AES
-  phone     String   @unique // Đã mã hóa
+  name      String
+  phone     String   @unique
   hasSpun   Boolean  @default(false)
-  prize     String?  // Phần thưởng trúng
+  prize     String?
   createdAt DateTime @default(now())
-    deviceKey String?  @unique
+  deviceKey String?  @unique
 }
 
 model PrizeConfig {
   id        Int      @id @default(autoincrement())
   name      String   // Tên phần thưởng
   ratio     Float    // Tỷ lệ trúng (VD: 10 = 10%)
+  quantity  Int      @default(0) // Tổng số lượng giải
+  remaining Int      @default(0) // Số lượng còn lại
   createdAt DateTime @default(now())
 }
 
 model SpinHistory {
-  id         Int      @id @default(autoincrement())
-  phone      String
-  prize      String
-  ip         String?
-  userAgent  String?
-  deviceKey  String?  // ← không có @unique
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  phone     String
+  prize     String
+  ip        String?
+  userAgent String?
+  deviceKey String?
+  createdAt DateTime @default(now())
 }
+
 model CardTopup {
-  id          Int      @id @default(autoincrement())
-  phone       String
-  provider    String
-  amount      Int
-  code        String
-  serial      String
-  requestId   String   @unique
-  status      Int
-  message     String?
-  transId     String?
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  phone     String
+  provider  String
+  amount    Int
+  code      String
+  serial    String
+  requestId String   @unique
+  status    Int
+  message   String?
+  transId   String?
+  createdAt DateTime @default(now())
 }

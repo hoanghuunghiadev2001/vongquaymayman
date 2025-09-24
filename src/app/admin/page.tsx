@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 
 export default function AdminPage() {
@@ -7,6 +8,7 @@ export default function AdminPage() {
     id: number;
     name: string;
     ratio: number;
+    quantity: number; // 🆕 thêm số lượng
   };
 
   type User = {
@@ -33,8 +35,14 @@ export default function AdminPage() {
     percent: number;
     prizeStats: PrizeStat[];
   } | null>(null);
+
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10); // số user mỗi trang
+  const [totalPages, setTotalPages] = useState(1);
+
   const [name, setName] = useState('');
   const [ratio, setRatio] = useState('');
+  const [quantity, setQuantity] = useState(''); // 🆕 thêm state
 
   const fetchPrizes = async () => {
     const res = await fetch('/api/admin/prizes');
@@ -42,31 +50,63 @@ export default function AdminPage() {
     setPrizes(data);
   };
 
-  const fetchUsers = async () => {
-    const res = await fetch('/api/admin/users');
+  const fetchUsers = async (pageNum = 1) => {
+    const res = await fetch(`/api/admin/users?page=${pageNum}&limit=${limit}`);
     const data = await res.json();
+
     setUsers(data.users);
     setStats({
-      totalUsers: data.totalUsers,
+      totalUsers: data.pagination.totalUsers,
       winners: data.winners,
       percent: data.percent,
       prizeStats: data.prizeStats,
     });
+    setTotalPages(data.pagination.totalPages);
+    setPage(data.pagination.page);
   };
 
   const addPrize = async () => {
     const res = await fetch('/api/admin/prizes', {
       method: 'POST',
-      body: JSON.stringify({ name, ratio }),
+      body: JSON.stringify({ name, ratio, quantity }), // gửi thêm số lượng
       headers: { 'Content-Type': 'application/json' },
     });
 
     if (res.ok) {
       setName('');
       setRatio('');
+      setQuantity('');
       fetchPrizes();
     }
   };
+
+  function ExportButton() {
+    const handleExport = async () => {
+      try {
+        const res = await fetch("/api/admin/users/export", {
+          method: "GET",
+        });
+
+        if (!res.ok) throw new Error("Lỗi khi export Excel");
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "report.xlsx";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("❌ Export Excel thất bại:", err);
+      }
+    };
+
+    return <Button onClick={handleExport}>Xuất Excel</Button>;
+  }
 
   useEffect(() => {
     fetchPrizes();
@@ -112,6 +152,13 @@ export default function AdminPage() {
             value={ratio}
             onChange={(e) => setRatio(e.target.value)}
           />
+          <input
+            className="w-full p-2 mb-2 border rounded"
+            placeholder="Số lượng"
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+          />
           <button
             onClick={addPrize}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 rounded"
@@ -126,6 +173,7 @@ export default function AdminPage() {
                 <th className="p-2 border">#</th>
                 <th className="p-2 border">Tên</th>
                 <th className="p-2 border">Tỷ lệ (%)</th>
+                <th className="p-2 border">Số lượng</th> {/* thêm cột */}
                 <th className="p-2 border">Thao tác</th>
               </tr>
             </thead>
@@ -159,7 +207,21 @@ export default function AdminPage() {
                       className="w-full p-1 border rounded text-right"
                     />
                   </td>
-                  <td className="p-2 border space-x-2">
+                  <td className="p-2 border">
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => {
+                        setPrizes((prev) =>
+                          prev.map((p) =>
+                            p.id === item.id ? { ...p, quantity: Number(e.target.value) } : p
+                          )
+                        );
+                      }}
+                      className="w-full p-1 border rounded text-right"
+                    />
+                  </td>
+                  <td className="flex justify-center gap-2 items-center px-4 h-12">
                     <button
                       onClick={async () => {
                         await fetch('/api/admin/prizes', {
@@ -198,6 +260,8 @@ export default function AdminPage() {
         {/* Danh sách người dùng */}
         <div>
           <h2 className="text-xl font-semibold mb-2">🧑‍💼 Danh sách người dùng</h2>
+          <ExportButton />
+          {/* Bảng User */}
           <table className="w-full border text-sm">
             <thead>
               <tr className="bg-gray-200 text-center">
@@ -218,6 +282,30 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
+
+          {/* Pagination controls */}
+          <div className="flex justify-center items-center gap-2 mt-4">
+            <button
+              disabled={page === 1}
+              onClick={() => fetchUsers(page - 1)}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+            >
+              ⬅️ Trước
+            </button>
+
+            <span>
+              Trang <b>{page}</b> / {totalPages}
+            </span>
+
+            <button
+              disabled={page === totalPages}
+              onClick={() => fetchUsers(page + 1)}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+            >
+              Sau ➡️
+            </button>
+          </div>
+
 
           {/* Thống kê phần thưởng đã trúng */}
           {stats && (

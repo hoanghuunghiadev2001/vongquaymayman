@@ -54,7 +54,7 @@ export function AlreadySpunModal({ isOpen, onClose }: AlreadySpunModalProps) {
           <h2 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent mb-3">
             RẤT TIẾC!
           </h2>
-          <p className="text-xl text-gray-600 font-medium">Bạn hoặc thiết bị này đã tham gia rồi</p>
+          <p className="text-xl text-gray-600 font-medium">Hôm nay bạn đã tham gia quay thưởng rồi</p>
         </div>
 
         {/* Message display */}
@@ -63,7 +63,7 @@ export function AlreadySpunModal({ isOpen, onClose }: AlreadySpunModalProps) {
             <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4 animate-pulse" />
             <div className="text-2xl font-bold text-gray-800 mb-2">Đã quay thưởng</div>
             <div className="text-sm text-gray-500 bg-gray-100 rounded-lg p-3">
-              Mỗi số điện thoại chỉ được quay 1 lần duy nhất
+              Mỗi người sẽ được 1 lượt quay
             </div>
           </div>
         </div>

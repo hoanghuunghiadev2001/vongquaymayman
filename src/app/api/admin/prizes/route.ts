@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { cookies } from "next/headers"
+
+async function requireAdmin() {
+  const cookieStore = await cookies() // ✅ thêm await
+  const token = cookieStore.get("admin_token")
+
+  if (!token || token.value !== "secure_token_here") {
+    return false
+  }
+
+  return true
+}
 
 export async function GET() {
   const prizes = await prisma.prizeConfig.findMany({ orderBy: { id: 'asc' } });
@@ -7,9 +19,12 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { name, ratio } = await req.json();
+  if (!requireAdmin()) {
+    return NextResponse.json({ error: 'Không có quyền' }, { status: 403 });
+  }
 
-  if (!name || !ratio) {
+  const { name, ratio, quantity } = await req.json();
+  if (!name || !ratio || quantity == null) {
     return NextResponse.json({ error: 'Thiếu dữ liệu' }, { status: 400 });
   }
 
@@ -17,6 +32,8 @@ export async function POST(req: Request) {
     data: {
       name,
       ratio: parseFloat(ratio),
+      quantity: parseInt(quantity, 10),
+      remaining: parseInt(quantity, 10),
     },
   });
 
@@ -24,9 +41,12 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const { id, name, ratio } = await req.json();
+  if (!requireAdmin()) {
+    return NextResponse.json({ error: 'Không có quyền' }, { status: 403 });
+  }
 
-  if (!id || !name || ratio == null) {
+  const { id, name, ratio, quantity } = await req.json();
+  if (!id || !name || ratio == null || quantity == null) {
     return NextResponse.json({ error: 'Thiếu thông tin' }, { status: 400 });
   }
 
@@ -35,6 +55,8 @@ export async function PUT(req: Request) {
     data: {
       name,
       ratio: parseFloat(ratio),
+      quantity: parseInt(quantity, 10),
+      remaining: parseInt(quantity, 10),
     },
   });
 
@@ -42,15 +64,15 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { id } = await req.json();
+  if (!requireAdmin()) {
+    return NextResponse.json({ error: 'Không có quyền' }, { status: 403 });
+  }
 
+  const { id } = await req.json();
   if (!id) {
     return NextResponse.json({ error: 'Thiếu ID' }, { status: 400 });
   }
 
-  await prisma.prizeConfig.delete({
-    where: { id },
-  });
-
+  await prisma.prizeConfig.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }
