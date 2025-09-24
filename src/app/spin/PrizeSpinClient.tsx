@@ -21,6 +21,7 @@ export default function PrizeSpinClient() {
   const [openModalPrize, setOpenModalPrize] = useState(false)
   const [openAlreadySpunModal, setAlreadySpunModal] = useState(false)
   const [loading, setLoading] = useState(false);
+  const [showCongrats, setShowCongrats] = useState(false)
 
 
 
@@ -33,74 +34,81 @@ export default function PrizeSpinClient() {
       })
   }, [])
 
-const spin = async () => {
+  const spin = async () => {
 
-  if (spinning || !phone) return;
+    if (spinning || !phone) return;
 
-  const deviceKey = localStorage.getItem('deviceKey');
-  if (!deviceKey) {
-    alert('Thiếu deviceKey. Vui lòng tải lại trang và thử lại.');
-    return;
-  }
-
-  setSpinning(true);
-  setResultIndex(null);
-  setLoading(true);
-
-  try {
-    const res = await fetch("/api/spin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, deviceKey }),
-    });
-
-    const data = await res.json();
-
-    // ❌ Nếu lỗi server
-    if (!res.ok) {
-      alert(data.message || 'Lỗi máy chủ. Vui lòng thử lại sau.');
-      setSpinning(false);
+    const deviceKey = localStorage.getItem('deviceKey');
+    if (!deviceKey) {
+      alert('Thiếu deviceKey. Vui lòng tải lại trang và thử lại.');
       return;
     }
 
-    // ✅ Nếu đã quay
-    if (data.alreadySpun) {
-      setSpinning(false);
-      setAlreadySpunModal(true);
-      return;
-    }
+    setSpinning(true);
+    setResultIndex(null);
+    setLoading(true);
 
-    const prizeId = data.prizeId;
-    const index = prizes.findIndex((p) => p.id === prizeId);
-    if (index === -1) {
-      alert('Phần thưởng không tồn tại.');
-      setSpinning(false);
-      return;
-    }
+    try {
+      const res = await fetch("/api/spin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, deviceKey }),
+      });
 
-    // Hiệu ứng quay vòng
-    let current = 0;
-    const total = 3 * prizes.length + index;
-    const interval = setInterval(() => {
-      setHighlight(current % prizes.length);
-      current++;
-      if (current > total) {
-        clearInterval(interval);
-        setResultIndex(index);
+      const data = await res.json();
+
+      // ❌ Nếu lỗi server
+      if (!res.ok) {
+        alert(data.message || 'Lỗi máy chủ. Vui lòng thử lại sau.');
         setSpinning(false);
+        return;
       }
-    }, 300);
 
-    // Lưu trạng thái đã quay
-    localStorage.setItem('hasSpun', 'true');
-  } catch (error) {
-    console.error('Lỗi khi gọi API /spin:', error);
-    alert('Không thể kết nối tới máy chủ. Vui lòng thử lại sau.');
-    setSpinning(false);
-  } finally {
-    setLoading(false);
-  }
-};
+      // ✅ Nếu đã quay
+      if (data.alreadySpun) {
+        setSpinning(false);
+        setAlreadySpunModal(true);
+        return;
+      }
+
+      const prizeId = data.prizeId;
+      const index = prizes.findIndex((p) => p.id === prizeId);
+      if (index === -1) {
+        alert('Phần thưởng không tồn tại.');
+        setSpinning(false);
+        return;
+      }
+
+      let current = 0;
+      const total = 3 * prizes.length + index;
+
+      const spinStep = (delay: number) => {
+        setHighlight(current % prizes.length);
+        current++;
+
+        if (current <= total) {
+          // tăng delay dần để tạo cảm giác chậm lại
+          const nextDelay = delay + 50; // mỗi vòng chậm thêm 10ms
+          setTimeout(() => spinStep(nextDelay), nextDelay);
+        } else {
+          setResultIndex(index);
+          setSpinning(false);
+        }
+      };
+
+      // bắt đầu với tốc độ nhanh
+      spinStep(100);
+
+      // Lưu trạng thái đã quay
+      localStorage.setItem('hasSpun', 'true');
+    } catch (error) {
+      console.error('Lỗi khi gọi API /spin:', error);
+      alert('Không thể kết nối tới máy chủ. Vui lòng thử lại sau.');
+      setSpinning(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const prizeColors = [
@@ -116,7 +124,13 @@ const spin = async () => {
   ]
   useEffect(() => {
     if (resultIndex !== null) {
-      setOpenModalPrize(true)
+      // Sau 2s mới hiện chúc mừng + confetti
+      const timer = setTimeout(() => {
+        setShowCongrats(true)
+        setOpenModalPrize(true) // hoặc mở modal cùng lúc
+      }, 2000)
+
+      return () => clearTimeout(timer)
     }
   }, [resultIndex])
 
@@ -225,7 +239,7 @@ const spin = async () => {
         </div>
 
         {/* Result Display */}
-        {resultIndex !== null && (
+        {resultIndex !== null && showCongrats && (
           <div className="mt-8 text-center">
             <div className="bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl p-6 shadow-2xl border-4 border-yellow-400 animate-bounce">
               <Trophy className="w-12 h-12 text-white mx-auto mb-3" />
@@ -254,7 +268,7 @@ const spin = async () => {
         )}
         <PrizeModal isOpen={openModalPrize} onClose={() => setOpenModalPrize(false)} prize={prizes[resultIndex ?? 0] ?? ''} />
         <AlreadySpunModal isOpen={openAlreadySpunModal} message="ádasdasd" onClose={() => setAlreadySpunModal(false)} />
-               <LoadingModal isOpen={loading}/>
+        <LoadingModal isOpen={loading} />
         {/* Instructions */}
         <div className="mt-8 text-center">
           <p className="text-gray-300 text-lg">
