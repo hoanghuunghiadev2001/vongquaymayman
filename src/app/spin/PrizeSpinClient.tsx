@@ -89,7 +89,7 @@ const spin = async () => {
         setResultIndex(index);
         setSpinning(false);
       }
-    }, 100);
+    }, 300);
 
     // Lưu trạng thái đã quay
     localStorage.setItem('hasSpun', 'true');
