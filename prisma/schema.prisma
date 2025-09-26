@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // ví dụ: postgresql://username:password@host:port/dbname
 }
 
 model Admin {
@@ -14,32 +14,34 @@ model Admin {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  phone     String   @unique
-  hasSpun   Boolean  @default(false)
-  prize     String?
-  createdAt DateTime @default(now())
-  deviceKey String?  @unique
+  id            Int      @id @default(autoincrement())
+  name          String
+  phone         String   @unique
+  hasSpun       Boolean  @default(false)
+  prize         String?
+  createdAt     DateTime @default(now())
+  deviceKey     String?  @unique
+  licensePlate2 String?  @unique
 }
 
 model PrizeConfig {
   id        Int      @id @default(autoincrement())
-  name      String   // Tên phần thưởng
-  ratio     Float    // Tỷ lệ trúng (VD: 10 = 10%)
-  quantity  Int      @default(0) // Tổng số lượng giải
-  remaining Int      @default(0) // Số lượng còn lại
+  name      String
+  ratio     Float
+  quantity  Int      @default(0)
+  remaining Int      @default(0)
   createdAt DateTime @default(now())
 }
 
 model SpinHistory {
-  id        Int      @id @default(autoincrement())
-  phone     String
-  prize     String
-  ip        String?
-  userAgent String?
-  deviceKey String?
-  createdAt DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  phone       String
+  prize       String
+  ip          String?
+  userAgent   String?
+  deviceKey   String?
+  plateNumber String?
+  createdAt   DateTime @default(now())
 }
 
 model CardTopup {

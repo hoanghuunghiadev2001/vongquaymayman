@@ -15,6 +15,7 @@ export default function AdminPage() {
     id: number;
     name: string;
     phone: string;
+    licensePlate: string;
     prize: string | null;
     hasSpun: boolean;
     createdAt: string;
@@ -267,6 +268,7 @@ export default function AdminPage() {
               <tr className="bg-gray-200 text-center">
                 <th className="p-2 border">Tên</th>
                 <th className="p-2 border">SĐT</th>
+                <th className="p-2 border">biển số xe</th>
                 <th className="p-2 border">Phần thưởng</th>
                 <th className="p-2 border">Ngày tham gia</th>
               </tr>
@@ -276,6 +278,7 @@ export default function AdminPage() {
                 <tr key={user.id} className="text-center">
                   <td className="p-2 border">{user.name}</td>
                   <td className="p-2 border">{user.phone}</td>
+                  <td className="p-2 border">{user.licensePlate}</td>
                   <td className="p-2 border">{user.prize || '—'}</td>
                   <td className="p-2 border">{new Date(user.createdAt).toLocaleString()}</td>
                 </tr>

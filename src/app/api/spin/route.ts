@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -10,13 +11,13 @@ import nodemailer from 'nodemailer';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Hàm gửi mail
+// Hàm gửi mail cảnh báo quà gần hết
 async function sendLowStockMail(prizeName: string, quantity: number) {
   try {
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT) || 587,
-      secure: false, // true cho 465, false cho 587
+      secure: false,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -42,22 +43,31 @@ async function sendLowStockMail(prizeName: string, quantity: number) {
 
 export async function POST(req: Request) {
   try {
-    const { phone, deviceKey } = await req.json();
+    const { phone, deviceKey, plateNumber } = await req.json();
+
     if (!phone) {
       return NextResponse.json({ success: false, message: 'Thiếu số điện thoại' }, { status: 400 });
     }
 
+    if (!plateNumber) {
+      return NextResponse.json({ success: false, message: 'Thiếu biển số xe' }, { status: 400 });
+    }
+
+    // Chuẩn hóa biển số xe
+    const normalizedPlate = plateNumber.trim().toUpperCase();
     const encryptedPhone = encrypt(phone);
+
+    // Kiểm tra user tồn tại
     const user = await prisma.user.findUnique({ where: { phone: encryptedPhone } });
     if (!user) {
       return NextResponse.json({ success: false, message: 'Người dùng không tồn tại' }, { status: 404 });
     }
 
-    // Xác định ngày hiện tại theo giờ VN
+    // Ngày hiện tại theo giờ VN
     const startOfDay = dayjs().tz('Asia/Ho_Chi_Minh').startOf('day').toDate();
     const endOfDay = dayjs().tz('Asia/Ho_Chi_Minh').endOf('day').toDate();
 
-    // Kiểm tra đã quay trong ngày chưa
+    // Kiểm tra đã quay trong ngày theo số điện thoại
     const spunToday = await prisma.spinHistory.findFirst({
       where: {
         phone: encryptedPhone,
@@ -65,11 +75,19 @@ export async function POST(req: Request) {
       },
     });
 
-    if (spunToday) {
+    // Kiểm tra đã quay trong ngày theo biển số xe
+    const spunPlateToday = await prisma.spinHistory.findFirst({
+      where: {
+        plateNumber: normalizedPlate,
+        createdAt: { gte: startOfDay, lte: endOfDay },
+      },
+    });
+
+    if (spunToday || spunPlateToday) {
       return NextResponse.json({
         success: true,
-        prize: spunToday.prize,
-        message: 'Bạn đã quay hôm nay rồi, hãy quay lại vào ngày mai!',
+        prize: spunToday?.prize || spunPlateToday?.prize,
+        message: 'Số điện thoại hoặc biển số xe này đã quay hôm nay, hãy quay lại vào ngày mai!',
         alreadySpun: true,
       });
     }
@@ -84,33 +102,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Hết phần thưởng.' }, { status: 500 });
     }
 
-    // Tạo mảng theo tỉ lệ
+    // Tạo mảng phần thưởng theo tỉ lệ
     const weighted: { id: number; name: string }[] = [];
-    prizes.forEach((p: { ratio: number; id: any; name: any; }) => {
+    prizes.forEach((p: { ratio: number; id: number; name: string }) => {
       for (let i = 0; i < p.ratio; i++) {
         weighted.push({ id: p.id, name: p.name });
       }
     });
 
-    // Chọn ngẫu nhiên
+    // Chọn ngẫu nhiên phần thưởng
     const selected = weighted[Math.floor(Math.random() * weighted.length)];
 
     // Giảm số lượng phần thưởng trong transaction
-    const updatedPrize = await prisma.$transaction(async (tx: { prizeConfig: { findUnique: (arg0: { where: { id: number; }; }) => any; update: (arg0: { where: { id: number; }; data: { quantity: { decrement: number; }; }; }) => any; }; }) => {
+    const updatedPrize = await prisma.$transaction(async (tx) => {
       const prize = await tx.prizeConfig.findUnique({ where: { id: selected.id } });
       if (!prize || prize.quantity <= 0) {
         throw new Error("Phần thưởng đã hết");
       }
 
-      const updated = await tx.prizeConfig.update({
+      return await tx.prizeConfig.update({
         where: { id: selected.id },
         data: { quantity: { decrement: 1 } },
       });
-
-      return updated;
     });
 
-    // Nếu số lượng còn < 10 thì gửi mail cho admin
+    // Nếu số lượng còn < 10 thì gửi mail cảnh báo
     if (updatedPrize.quantity < 10) {
       await sendLowStockMail(updatedPrize.name, updatedPrize.quantity);
     }
@@ -131,6 +147,7 @@ export async function POST(req: Request) {
         prize: updatedPrize.name,
         ip: String(ip),
         userAgent,
+        plateNumber: normalizedPlate,
         ...(deviceKey ? { deviceKey } : {}),
       },
     });

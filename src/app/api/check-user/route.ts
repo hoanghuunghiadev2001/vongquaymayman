@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { encrypt } from '@/lib/crypto';
@@ -10,55 +12,76 @@ dayjs.extend(timezone);
 
 export async function POST(req: Request) {
   try {
-    const { name, phone } = await req.json();
+    const { name, phone, licensePlate } = await req.json();
 
-    if (!name || !phone) {
-      return NextResponse.json({ allowed: false, message: 'Thiếu thông tin!' }, { status: 400 });
+    // Bắt buộc phải có ít nhất phone hoặc biển số xe
+    if (!phone && !licensePlate) {
+      return NextResponse.json(
+        { allowed: false, message: 'Phải nhập số điện thoại hoặc biển số xe!' },
+        { status: 400 }
+      );
     }
 
-    const encryptedPhone = encrypt(phone);
-    const encryptedName = encrypt(name);
+    // Mã hóa phone và name, chuẩn hóa biển số xe thành chữ hoa
+    const encryptedPhone = phone ? encrypt(phone) : null;
+    const encryptedName = name ? encrypt(name) : null;
+    const normalizedPlate = licensePlate ? licensePlate.toUpperCase() : null;
 
-    // Lấy múi giờ VN (Asia/Ho_Chi_Minh)
+    // Ngày hôm nay theo múi giờ VN
     const startOfDay = dayjs().tz('Asia/Ho_Chi_Minh').startOf('day').toDate();
     const endOfDay = dayjs().tz('Asia/Ho_Chi_Minh').endOf('day').toDate();
 
-    // Kiểm tra trong SpinHistory xem đã quay trong ngày chưa
+
+    // Kiểm tra lịch sử quay hôm nay
     const spunToday = await prisma.spinHistory.findFirst({
       where: {
-        phone: encryptedPhone,
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
+        createdAt: { gte: startOfDay, lte: endOfDay },
+        OR: [
+          ...(encryptedPhone ? [{ phone: encryptedPhone }] : []),
+          ...(normalizedPlate
+            ? [{ plateNumber: { equals: normalizedPlate} }]
+            : []),
+        ],
       },
     });
 
     if (spunToday) {
       return NextResponse.json({
         allowed: false,
-        message: 'Bạn đã hết lượt quay hôm nay!',
+        message: 'Số điện thoại hoặc biển số xe đã quay thưởng hôm nay!',
       });
     }
 
-    // Nếu user chưa tồn tại thì tạo mới
-    let existingUser = await prisma.user.findUnique({
-      where: { phone: encryptedPhone },
+    // Tìm hoặc tạo user trong bảng User
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(encryptedPhone ? [{ phone: encryptedPhone }] : []),
+          ...(normalizedPlate
+            ? [{ licensePlate2: { equals: normalizedPlate } }]
+            : []),
+        ],
+      },
     });
 
     if (!existingUser) {
-      existingUser = await prisma.user.create({
+      await prisma.user.create({
         data: {
-          name: encryptedName,
-          phone: encryptedPhone,
+          name: encryptedName ?? 'Người dùng',
+          phone: encryptedPhone ?? '',
+          licensePlate2: normalizedPlate ?? '',
           hasSpun: false,
         },
       });
     }
 
+    // Nếu chưa quay hôm nay, cho phép tham gia
     return NextResponse.json({ allowed: true });
   } catch (error) {
     console.error('Lỗi khi kiểm tra user:', error);
-    return NextResponse.json({ allowed: false, message: 'Lỗi server!' }, { status: 500 });
+    return NextResponse.json(
+      { allowed: false, message: 'Lỗi server!' },
+      { status: 500 }
+    );
   }
 }

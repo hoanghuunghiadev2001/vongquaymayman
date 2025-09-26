@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client"
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
@@ -5,10 +6,26 @@ import { Sparkles, Gift, Trophy, Star } from "lucide-react"
 import { PrizeModal } from "@/components/modal-prizes"
 import { AlreadySpunModal } from "@/components/alreadySpunModal"
 import { LoadingModal } from "@/components/modalLoading"
+import { useRouter } from "next/navigation"
 
 type Prize = {
   id: number
   name: string
+}
+
+type StarData = {
+  left: string
+  top: string
+  delay: string
+  duration: string
+}
+
+type ConfettiData = {
+  left: string
+  top: string
+  delay: string
+  duration: string
+  emoji: string
 }
 
 export default function PrizeSpinClient() {
@@ -18,12 +35,15 @@ export default function PrizeSpinClient() {
   const [spinning, setSpinning] = useState(false)
   const searchParams = useSearchParams()
   const phone = searchParams.get("phone")
+  const plateNumber = searchParams.get("plateNumber")
   const [openModalPrize, setOpenModalPrize] = useState(false)
   const [openAlreadySpunModal, setAlreadySpunModal] = useState(false)
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false)
   const [showCongrats, setShowCongrats] = useState(false)
+  const [stars, setStars] = useState<StarData[]>([])
+  const [confetti, setConfetti] = useState<ConfettiData[]>([])
 
-
+  const router = useRouter()
 
   // Load danh sách phần thưởng
   useEffect(() => {
@@ -34,82 +54,100 @@ export default function PrizeSpinClient() {
       })
   }, [])
 
+  // Sinh stars chỉ trên client
+  useEffect(() => {
+    const generatedStars: StarData[] = Array.from({ length: 50 }).map(() => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 3}s`,
+      duration: `${2 + Math.random() * 3}s`,
+    }))
+    setStars(generatedStars)
+  }, [])
+
+  // Sinh confetti chỉ khi showCongrats = true
+  useEffect(() => {
+    if (showCongrats) {
+      const emojis = ["🎉", "🎊", "✨", "🌟"]
+      const generatedConfetti: ConfettiData[] = Array.from({ length: 20 }).map(() => ({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 2}s`,
+        duration: `${1 + Math.random() * 2}s`,
+        emoji: emojis[Math.floor(Math.random() * emojis.length)],
+      }))
+      setConfetti(generatedConfetti)
+    }
+  }, [showCongrats])
+
   const spin = async () => {
+    if (spinning || !phone) return
 
-    if (spinning || !phone) return;
-
-    const deviceKey = localStorage.getItem('deviceKey');
+    const deviceKey = localStorage.getItem('deviceKey')
     if (!deviceKey) {
-      alert('Thiếu deviceKey. Vui lòng tải lại trang và thử lại.');
-      return;
+      alert('Thiếu deviceKey. Vui lòng tải lại trang và thử lại.')
+      return
     }
 
-    setSpinning(true);
-    setResultIndex(null);
-    setLoading(true);
+    setSpinning(true)
+    setResultIndex(null)
+    setLoading(true)
 
     try {
       const res = await fetch("/api/spin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, deviceKey }),
-      });
+        body: JSON.stringify({ phone, deviceKey, plateNumber }),
+      })
 
-      const data = await res.json();
+      const data = await res.json()
 
-      // ❌ Nếu lỗi server
       if (!res.ok) {
-        alert(data.message || 'Lỗi máy chủ. Vui lòng thử lại sau.');
-        setSpinning(false);
-        return;
+        alert(data.message || 'Lỗi máy chủ. Vui lòng thử lại sau.')
+        setSpinning(false)
+        return
       }
 
-      // ✅ Nếu đã quay
       if (data.alreadySpun) {
-        setSpinning(false);
-        setAlreadySpunModal(true);
-        return;
+        setSpinning(false)
+        setAlreadySpunModal(true)
+        return
       }
 
-      const prizeId = data.prizeId;
-      const index = prizes.findIndex((p) => p.id === prizeId);
+      const prizeId = data.prizeId
+      const index = prizes.findIndex((p) => p.id === prizeId)
       if (index === -1) {
-        alert('Phần thưởng không tồn tại.');
-        setSpinning(false);
-        return;
+        alert('Phần thưởng không tồn tại.')
+        setSpinning(false)
+        return
       }
 
-      let current = 0;
-      const total = 3 * prizes.length + index;
+      let current = 0
+      const total = 3 * prizes.length + index
 
       const spinStep = (delay: number) => {
-        setHighlight(current % prizes.length);
-        current++;
+        setHighlight(current % prizes.length)
+        current++
 
         if (current <= total) {
-          // tăng delay dần để tạo cảm giác chậm lại
-          const nextDelay = delay + 50; // mỗi vòng chậm thêm 10ms
-          setTimeout(() => spinStep(nextDelay), nextDelay);
+          const nextDelay = delay + 50
+          setTimeout(() => spinStep(nextDelay), nextDelay)
         } else {
-          setResultIndex(index);
-          setSpinning(false);
+          setResultIndex(index)
+          setSpinning(false)
         }
-      };
+      }
 
-      // bắt đầu với tốc độ nhanh
-      spinStep(100);
-
-      // Lưu trạng thái đã quay
-      localStorage.setItem('hasSpun', 'true');
+      spinStep(100)
+      localStorage.setItem('hasSpun', 'true')
     } catch (error) {
-      console.error('Lỗi khi gọi API /spin:', error);
-      alert('Không thể kết nối tới máy chủ. Vui lòng thử lại sau.');
-      setSpinning(false);
+      console.error('Lỗi khi gọi API /spin:', error)
+      alert('Không thể kết nối tới máy chủ. Vui lòng thử lại sau.')
+      setSpinning(false)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
-
+  }
 
   const prizeColors = [
     "from-red-500 to-red-600",
@@ -122,31 +160,34 @@ export default function PrizeSpinClient() {
     "from-orange-500 to-orange-600",
     "from-teal-500 to-teal-600",
   ]
+
   useEffect(() => {
     if (resultIndex !== null) {
-      // Sau 2s mới hiện chúc mừng + confetti
       const timer = setTimeout(() => {
         setShowCongrats(true)
-        setOpenModalPrize(true) // hoặc mở modal cùng lúc
+        setOpenModalPrize(true)
       }, 2000)
-
       return () => clearTimeout(timer)
     }
   }, [resultIndex])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
-      {/* Animated background elements */}
+      <button   onClick={() => router.push("/")}  className="absolute animate-bounce top-20 left-20 h-16 w-16 z-20">
+        <img src="https://png.pngtree.com/png-clipart/20241019/original/pngtree-3d-home-icon-png-image_16400302.png" alt="" />
+      </button>
+
+      {/* Stars Background */}
       <div className="absolute inset-0">
-        {Array.from({ length: 50 }).map((_, i) => (
+        {stars.map((star, i) => (
           <div
             key={i}
             className="absolute animate-pulse opacity-20"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 3}s`,
+              left: star.left,
+              top: star.top,
+              animationDelay: star.delay,
+              animationDuration: star.duration,
             }}
           >
             <Star className="text-yellow-400 w-2 h-2" />
@@ -169,7 +210,6 @@ export default function PrizeSpinClient() {
 
         {/* Main Game Container */}
         <div className="relative">
-          {/* Outer glow effect */}
           <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/30 to-pink-500/30 rounded-3xl blur-xl animate-pulse" />
 
           <div className="w-[80vw] relative bg-white/10 backdrop-blur-lg p-8 rounded-3xl shadow-2xl border border-white/20">
@@ -186,17 +226,12 @@ export default function PrizeSpinClient() {
                     }
                   `}
                 >
-                  {/* Prize icon */}
                   <div className="mb-2">
                     <Gift className={`w-8 h-8 mx-auto ${highlight === i ? "text-white" : "text-gray-600"}`} />
                   </div>
-
-                  {/* Prize name */}
                   <div className={`text-sm font-semibold ${highlight === i ? "text-white" : "text-gray-800"}`}>
                     {prize.name}
                   </div>
-
-                  {/* Highlight effect */}
                   {highlight === i && (
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-yellow-400/20 to-pink-500/20 animate-ping" />
                   )}
@@ -228,8 +263,6 @@ export default function PrizeSpinClient() {
                     <Sparkles className="w-6 h-6" />
                   </span>
                 )}
-
-                {/* Button glow effect */}
                 {!spinning && (
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-pink-400/20 to-yellow-400/20 animate-pulse" />
                 )}
@@ -247,28 +280,30 @@ export default function PrizeSpinClient() {
               <div className="text-xl text-white font-semibold">Bạn trúng: {prizes[resultIndex]?.name}</div>
             </div>
 
-            {/* Confetti effect */}
+            {/* Confetti */}
             <div className="absolute inset-0 pointer-events-none">
-              {Array.from({ length: 20 }).map((_, i) => (
+              {confetti.map((c, i) => (
                 <div
                   key={i}
                   className="absolute animate-bounce"
                   style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animationDelay: `${Math.random() * 2}s`,
-                    animationDuration: `${1 + Math.random() * 2}s`,
+                    left: c.left,
+                    top: c.top,
+                    animationDelay: c.delay,
+                    animationDuration: c.duration,
                   }}
                 >
-                  {["🎉", "🎊", "✨", "🌟"][Math.floor(Math.random() * 4)]}
+                  {c.emoji}
                 </div>
               ))}
             </div>
           </div>
         )}
+
         <PrizeModal isOpen={openModalPrize} onClose={() => setOpenModalPrize(false)} prize={prizes[resultIndex ?? 0] ?? ''} />
         <AlreadySpunModal isOpen={openAlreadySpunModal} message="ádasdasd" onClose={() => setAlreadySpunModal(false)} />
         <LoadingModal isOpen={loading} />
+
         {/* Instructions */}
         <div className="mt-8 text-center">
           <p className="text-gray-300 text-lg">

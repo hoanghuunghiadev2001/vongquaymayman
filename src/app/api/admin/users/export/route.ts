@@ -11,7 +11,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    const decryptedUsers = users.map((user: { name: string; phone: string; id: any; prize: any; hasSpun: any; createdAt: any; }) => {
+    const decryptedUsers = users.map((user: { name: string; phone: string; id: any; prize: any; hasSpun: any; createdAt: any; licensePlate2: string | null }) => {
       let name = 'Không đọc được';
       let phone = 'Không đọc được';
 
@@ -29,6 +29,7 @@ export async function GET() {
         prize: user.prize,
         hasSpun: user.hasSpun ? '✅' : '❌',
         createdAt: user.createdAt,
+        licensePlate: user.licensePlate2 ?? '—',
       };
     });
 
@@ -40,8 +41,8 @@ export async function GET() {
 
     const prizeConfigs = await prisma.prizeConfig.findMany();
 
-    const detailedPrizes = prizeConfigs.map((config: { name: any; quantity: number; ratio: number; }) => {
-      const matched = prizeCounts.find((p: { prize: any; }) => p.prize === config.name);
+    const detailedPrizes = prizeConfigs.map((config: { name: any; quantity: number; ratio: number }) => {
+      const matched = prizeCounts.find((p: { prize: any }) => p.prize === config.name);
       const used = matched?._count ?? 0;
       const total = config.quantity ?? Math.floor(100 / config.ratio);
       const remaining = total;
@@ -64,15 +65,18 @@ export async function GET() {
       { header: 'ID', key: 'id', width: 10 },
       { header: 'Tên', key: 'name', width: 25 },
       { header: 'SĐT', key: 'phone', width: 20 },
+      { header: 'Biển số xe', key: 'licensePlate', width: 15 }, // thêm cột biển số xe
       { header: 'Phần thưởng', key: 'prize', width: 25 },
       { header: 'Đã quay', key: 'hasSpun', width: 10 },
       { header: 'Ngày tham gia', key: 'createdAt', width: 25 },
     ];
-    decryptedUsers.forEach((u: { id: any; name: any; phone: any; prize: any; hasSpun: any; createdAt: string | number | Date; }) =>
+
+    decryptedUsers.forEach((u: { id: any; name: any; phone: any; prize: any; hasSpun: any; createdAt: string | number | Date; licensePlate: string }) =>
       userSheet.addRow({
         id: u.id,
         name: u.name,
         phone: u.phone,
+        licensePlate: u.licensePlate,
         prize: u.prize ?? '—',
         hasSpun: u.hasSpun,
         createdAt: new Date(u.createdAt).toLocaleString('vi-VN'),

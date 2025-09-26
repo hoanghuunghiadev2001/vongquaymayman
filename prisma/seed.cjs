@@ -1,6 +1,6 @@
-// prisma/seed.ts
-import { prisma } from '../src/lib/prisma';
-import bcrypt from 'bcryptjs';
+/* eslint-disable @typescript-eslint/no-require-imports */
+const { prisma } = require('../src/lib/prisma.cjs'); // đổi lib sang .cjs nếu cần
+const bcrypt = require('bcryptjs');
 
 async function main() {
   const passwordHash = await bcrypt.hash('Toyota@123', 10);
@@ -17,7 +17,8 @@ async function main() {
   console.log('✅ Tài khoản admin đã được tạo: admin / admin123');
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });

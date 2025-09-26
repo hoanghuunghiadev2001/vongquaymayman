@@ -12,14 +12,14 @@ async function main() {
 
   // Tạo mảng trọng số
   const weighted: string[] = [];
-  prizes.forEach((p) => {
+  prizes.forEach((p: { ratio: number; name: string; }) => {
     for (let i = 0; i < p.ratio; i++) {
       weighted.push(p.name);
     }
   });
 
   const resultCount: Record<string, number> = {};
-  prizes.forEach(p => resultCount[p.name] = 0);
+  prizes.forEach((p: { name: string | number; }) => resultCount[p.name] = 0);
 
   const totalSpins = 1000;
   for (let i = 0; i < totalSpins; i++) {

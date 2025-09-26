@@ -9,7 +9,6 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
-
     const skip = (page - 1) * limit;
 
     // Lấy tổng số user
@@ -20,15 +19,27 @@ export async function GET(req: Request) {
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        licensePlate2: true,
+        prize: true,
+        hasSpun: true,
+        createdAt: true,
+      },
     });
 
-    const decryptedUsers = users.map((user: { name: string; phone: string; id: any; prize: any; hasSpun: any; createdAt: any; }) => {
+    // Giải mã dữ liệu
+    const decryptedUsers = users.map(user => {
       let name = 'Không đọc được';
       let phone = 'Không đọc được';
-
+      let licensePlate = 'Không đọc được';
+      
       try {
         if (user.name) name = decrypt(user.name);
         if (user.phone) phone = decrypt(user.phone);
+        if (user.licensePlate2) licensePlate = decrypt(user.licensePlate2);
       } catch (err) {
         console.warn(`❗ Không giải mã được user ID ${user.id}:`, err);
       }
@@ -37,6 +48,7 @@ export async function GET(req: Request) {
         id: user.id,
         name,
         phone,
+        licensePlate,
         prize: user.prize,
         hasSpun: user.hasSpun,
         createdAt: user.createdAt,
@@ -58,8 +70,8 @@ export async function GET(req: Request) {
 
     const prizeConfigs = await prisma.prizeConfig.findMany();
 
-    const detailedPrizes = prizeConfigs.map((config: { name: any; ratio: any; quantity: any; }) => {
-      const matched = prizeCounts.find((p: { prize: any; }) => p.prize === config.name);
+    const detailedPrizes = prizeConfigs.map(config => {
+      const matched = prizeCounts.find(p => p.prize === config.name);
       const used = matched?._count ?? 0;
       return {
         name: config.name,

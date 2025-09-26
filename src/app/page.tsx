@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid"
 import { LoadingModal } from "@/components/modalLoading"
 import "./page.css"
 export default function Home() {
+    const [licensePlate, setLicensePlate] = useState("")
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const router = useRouter()
@@ -27,9 +28,9 @@ export default function Home() {
       }
 
       // ✅ Kiểm tra định dạng số điện thoại Việt Nam: 10–11 số bắt đầu bằng 0
-      const phoneRegex = /^0\d{9,10}$/
+      const phoneRegex = /^0\d{9}$/
       if (!phoneRegex.test(phone)) {
-        setErr("Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng 10 hoặc 11 số bắt đầu bằng 0.")
+        setErr("Số điện thoại không hợp lệ.")
         setLoading(false)
         return
       }
@@ -37,7 +38,7 @@ export default function Home() {
       const res = await fetch("/api/check-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify({ name, phone, licensePlate  }),
       })
 
       const data = await res.json()
@@ -45,7 +46,7 @@ export default function Home() {
       if (!res.ok) {
         setErr(data.message || "Đã có lỗi xảy ra từ máy chủ.")
       } else if (data.allowed) {
-        router.push(`/spin?phone=${phone}`)
+        router.push(`/spin?phone=${phone}&plateNumber=${licensePlate}`)
       } else {
         setErr(data.message || "Bạn không được phép tham gia.")
       }
@@ -114,6 +115,20 @@ export default function Home() {
 
                 <div className="relative">
                   <label className="block text-lottery-text font-bold mb-2 text-sm uppercase tracking-wide">
+                    🚗 Biển số xe
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={licensePlate}
+                    onChange={(e) => setLicensePlate(e.target.value)}
+                    className="w-full px-4 py-3 bg-lottery-input border-2 border-lottery-border rounded-xl focus:outline-none focus:border-lottery-glow focus:ring-2 focus:ring-lottery-glow/20 text-lottery-text font-semibold placeholder-lottery-text-secondary/60 transition-all duration-300"
+                    placeholder="Nhập họ tên của bạn"
+                  />
+                </div>
+
+                <div className="relative">
+                  <label className="block text-lottery-text font-bold mb-2 text-sm uppercase tracking-wide">
                     📱 Số điện thoại
                   </label>
                   <input
@@ -129,7 +144,7 @@ export default function Home() {
 
               {err && (
                 <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 animate-shake">
-                  <p className="text-red-200 text-sm text-center font-semibold">⚠️ {err}</p>
+                  <p className="text-red-500 text-sm text-center font-semibold">⚠️ {err}</p>
                 </div>
               )}
 
