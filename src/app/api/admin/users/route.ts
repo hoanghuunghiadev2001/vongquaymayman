@@ -30,6 +30,8 @@ export async function GET(req: Request) {
       },
     });
 
+    
+
     // Giải mã dữ liệu
     const decryptedUsers = users.map(user => {
       let name = 'Không đọc được';
@@ -39,10 +41,13 @@ export async function GET(req: Request) {
       try {
         if (user.name) name = decrypt(user.name);
         if (user.phone) phone = decrypt(user.phone);
-        if (user.licensePlate2) licensePlate = decrypt(user.licensePlate2);
+        if (user.licensePlate2) licensePlate = user.licensePlate2;
       } catch (err) {
         console.warn(`❗ Không giải mã được user ID ${user.id}:`, err);
       }
+
+    console.log("📌 Raw licensePlate2:", user.licensePlate2);
+
 
       return {
         id: user.id,
@@ -81,6 +86,7 @@ export async function GET(req: Request) {
         remaining: config.quantity, // còn lại
       };
     });
+
 
     return NextResponse.json({
       pagination: {
