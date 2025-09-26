@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @next/next/no-img-element */
 "use client"
 import { useEffect, useState } from "react"
@@ -79,6 +80,22 @@ export default function PrizeSpinClient() {
       setConfetti(generatedConfetti)
     }
   }, [showCongrats])
+
+  // Thêm vào trong component PrizeSpinClient
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+     if (spinning || openModalPrize || openAlreadySpunModal) return // chặn bấm khi đang quay hoặc modal mở
+    if (e.code === "Enter" || e.code === "Space") {
+      e.preventDefault() // tránh scroll khi nhấn space
+      spin()
+    }
+  }
+
+  window.addEventListener("keydown", handleKeyDown)
+  return () => {
+    window.removeEventListener("keydown", handleKeyDown)
+  }
+}, [spinning, phone, prizes]) // phụ thuộc spinning để cập nhật trạng thái mới
 
   const spin = async () => {
     if (spinning || !phone) return
