@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     });
 
     // Nếu số lượng còn < 10 thì gửi mail cảnh báo
-    if (updatedPrize.quantity < 10) {
+    if (updatedPrize.quantity < 3) {
       await sendLowStockMail(updatedPrize.name, updatedPrize.quantity);
     }
 
