@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
@@ -31,7 +32,6 @@ export async function POST(req: Request) {
     const startOfDay = dayjs().tz('Asia/Ho_Chi_Minh').startOf('day').toDate();
     const endOfDay = dayjs().tz('Asia/Ho_Chi_Minh').endOf('day').toDate();
 
-
     // Kiểm tra lịch sử quay hôm nay
     const spunToday = await prisma.spinHistory.findFirst({
       where: {
@@ -39,43 +39,59 @@ export async function POST(req: Request) {
         OR: [
           ...(encryptedPhone ? [{ phone: encryptedPhone }] : []),
           ...(normalizedPlate
-            ? [{ plateNumber: { equals: normalizedPlate} }]
+            ? [{ plateNumber: { equals: normalizedPlate } }]
             : []),
         ],
       },
     });
 
     if (spunToday) {
-      return NextResponse.json({
-        allowed: false,
-        message: 'Số điện thoại hoặc biển số xe đã quay thưởng hôm nay!',
-      });
+      return NextResponse.json(
+        {
+          allowed: false,
+          message: 'Số điện thoại hoặc biển số xe đã quay thưởng hôm nay!',
+        },
+        { status: 400 }
+      );
     }
 
-    // Tìm hoặc tạo user trong bảng User
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          ...(encryptedPhone ? [{ phone: encryptedPhone }] : []),
-          ...(normalizedPlate
-            ? [{ licensePlate2: { equals: normalizedPlate } }]
-            : []),
-        ],
+    // Kiểm tra biển số xe đã tồn tại chưa
+    if (normalizedPlate) {
+      const plateExists = await prisma.user.findUnique({
+        where: { licensePlate2: normalizedPlate },
+      });
+      if (plateExists) {
+        return NextResponse.json(
+          { allowed: false, message: 'Biển số xe đã tồn tại!' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Kiểm tra số điện thoại đã tồn tại chưa
+    if (encryptedPhone) {
+      const phoneExists = await prisma.user.findUnique({
+        where: { phone: encryptedPhone },
+      });
+      if (phoneExists) {
+        return NextResponse.json(
+          { allowed: false, message: 'Số điện thoại đã tồn tại!' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Nếu không trùng => tạo mới user
+    await prisma.user.create({
+      data: {
+        name: encryptedName ?? 'Người dùng',
+        phone: encryptedPhone ?? '',
+        licensePlate2: normalizedPlate ?? '',
+        hasSpun: false,
       },
     });
 
-    if (!existingUser) {
-      await prisma.user.create({
-        data: {
-          name: encryptedName ?? 'Người dùng',
-          phone: encryptedPhone ?? '',
-          licensePlate2: normalizedPlate ?? '',
-          hasSpun: false,
-        },
-      });
-    }
-
-    // Nếu chưa quay hôm nay, cho phép tham gia
+    // Cho phép tham gia
     return NextResponse.json({ allowed: true });
   } catch (error) {
     console.error('Lỗi khi kiểm tra user:', error);
@@ -85,3 +101,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

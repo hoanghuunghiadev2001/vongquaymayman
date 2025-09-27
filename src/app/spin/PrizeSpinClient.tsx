@@ -43,16 +43,24 @@ export default function PrizeSpinClient() {
   const [showCongrats, setShowCongrats] = useState(false)
   const [stars, setStars] = useState<StarData[]>([])
   const [confetti, setConfetti] = useState<ConfettiData[]>([])
+    const [loadingPrizes, setLoadingPrizes] = useState(true) // <- thêm state
 
   const router = useRouter()
 
   // Load danh sách phần thưởng
-  useEffect(() => {
-    fetch("/api/admin/prizes")
-      .then((res) => res.json())
-      .then((data: Prize[]) => {
+ useEffect(() => {
+    const fetchPrizes = async () => {
+      try {
+        const res = await fetch("/api/admin/prizes")
+        const data: Prize[] = await res.json()
         setPrizes(data)
-      })
+      } catch (err) {
+        console.error("Lỗi khi load prizes:", err)
+      } finally {
+        setLoadingPrizes(false) // <- load xong mới cho phép quay
+      }
+    }
+    fetchPrizes()
   }, [])
 
   // Sinh stars chỉ trên client
@@ -85,6 +93,7 @@ export default function PrizeSpinClient() {
 useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
      if (spinning || openModalPrize || openAlreadySpunModal) return // chặn bấm khi đang quay hoặc modal mở
+          if (loadingPrizes || prizes.length === 0) return // <- chặn khi chưa load xong
     if (e.code === "Enter" || e.code === "Space") {
       e.preventDefault() // tránh scroll khi nhấn space
       spin()

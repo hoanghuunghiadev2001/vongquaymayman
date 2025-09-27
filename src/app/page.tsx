@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid"
 import { LoadingModal } from "@/components/modalLoading"
 import "./page.css"
 export default function Home() {
-    const [licensePlate, setLicensePlate] = useState("")
+  const [licensePlate2, setLicensePlate2] = useState("")
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const router = useRouter()
@@ -26,7 +26,7 @@ export default function Home() {
         deviceKey = uuidv4()
         localStorage.setItem("deviceKey", deviceKey)
       }
-
+      const licensePlate = licensePlate2.replace(/[^a-zA-Z0-9]/g, "")
       // ✅ Kiểm tra định dạng số điện thoại Việt Nam: 10–11 số bắt đầu bằng 0
       const phoneRegex = /^0\d{9}$/
       if (!phoneRegex.test(phone)) {
@@ -38,7 +38,7 @@ export default function Home() {
       const res = await fetch("/api/check-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, licensePlate  }),
+        body: JSON.stringify({ name, phone, licensePlate }),
       })
 
       const data = await res.json()
@@ -120,8 +120,8 @@ export default function Home() {
                   <input
                     type="text"
                     required
-                    value={licensePlate}
-                    onChange={(e) => setLicensePlate(e.target.value)}
+                    value={licensePlate2}
+                    onChange={(e) => setLicensePlate2(e.target.value)}
                     className="w-full px-4 py-3 bg-lottery-input border-2 border-lottery-border rounded-xl focus:outline-none focus:border-lottery-glow focus:ring-2 focus:ring-lottery-glow/20 text-lottery-text font-semibold placeholder-lottery-text-secondary/60 transition-all duration-300"
                     placeholder="Nhập họ tên của bạn"
                   />
