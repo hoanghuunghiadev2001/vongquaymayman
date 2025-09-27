@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+import { LoadingModal } from '@/components/modalLoading';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 
@@ -36,6 +37,7 @@ export default function AdminPage() {
     percent: number;
     prizeStats: PrizeStat[];
   } | null>(null);
+  const [loading, setLoading]= useState<boolean>(false)
 
   const [page, setPage] = useState(1);
   const [limit] = useState(10); // số user mỗi trang
@@ -45,67 +47,84 @@ export default function AdminPage() {
   const [ratio, setRatio] = useState('');
   const [quantity, setQuantity] = useState(''); // 🆕 thêm state
 
+ 
   const fetchPrizes = async () => {
-    const res = await fetch('/api/admin/prizes');
-    const data = await res.json();
-    setPrizes(data);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/prizes');
+      const data = await res.json();
+      setPrizes(data);
+    } catch (err) {
+      console.error('❌ Lỗi fetchPrizes:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchUsers = async (pageNum = 1) => {
-    const res = await fetch(`/api/admin/users?page=${pageNum}&limit=${limit}`);
-    const data = await res.json();
-
-    setUsers(data.users);
-    setStats({
-      totalUsers: data.pagination.totalUsers,
-      winners: data.winners,
-      percent: data.percent,
-      prizeStats: data.prizeStats,
-    });
-    setTotalPages(data.pagination.totalPages);
-    setPage(data.pagination.page);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users?page=${pageNum}&limit=${limit}`);
+      const data = await res.json();
+      setUsers(data.users);
+      setStats({
+        totalUsers: data.pagination.totalUsers,
+        winners: data.winners,
+        percent: data.percent,
+        prizeStats: data.prizeStats,
+      });
+      setTotalPages(data.pagination.totalPages);
+      setPage(data.pagination.page);
+    } catch (err) {
+      console.error('❌ Lỗi fetchUsers:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addPrize = async () => {
-    const res = await fetch('/api/admin/prizes', {
-      method: 'POST',
-      body: JSON.stringify({ name, ratio, quantity }), // gửi thêm số lượng
-      headers: { 'Content-Type': 'application/json' },
-    });
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/prizes', {
+        method: 'POST',
+        body: JSON.stringify({ name, ratio, quantity }),
+        headers: { 'Content-Type': 'application/json' },
+      });
 
-    if (res.ok) {
-      setName('');
-      setRatio('');
-      setQuantity('');
-      fetchPrizes();
+      if (res.ok) {
+        setName('');
+        setRatio('');
+        setQuantity('');
+        await fetchPrizes();
+      }
+    } catch (err) {
+      console.error('❌ Lỗi addPrize:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   function ExportButton() {
     const handleExport = async () => {
+      setLoading(true);
       try {
-        const res = await fetch("/api/admin/users/export", {
-          method: "GET",
-        });
-
-        if (!res.ok) throw new Error("Lỗi khi export Excel");
-
+        const res = await fetch('/api/admin/users/export');
+        if (!res.ok) throw new Error('Lỗi khi export Excel');
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
+        const link = document.createElement('a');
         link.href = url;
-        link.download = "report.xlsx";
+        link.download = 'report.xlsx';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-
         window.URL.revokeObjectURL(url);
       } catch (err) {
-        console.error("❌ Export Excel thất bại:", err);
+        console.error('❌ Export Excel thất bại:', err);
+      } finally {
+        setLoading(false);
       }
     };
-
     return <Button onClick={handleExport}>Xuất Excel</Button>;
   }
 
@@ -113,9 +132,11 @@ export default function AdminPage() {
     fetchPrizes();
     fetchUsers();
   }, []);
+ 
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <LoadingModal isOpen={loading}/>
       <h1 className="text-3xl font-bold mb-4 text-center">🎛️ Quản lý phần thưởng & người dùng</h1>
 
       {/* Thống kê tổng quan */}
@@ -174,7 +195,7 @@ export default function AdminPage() {
                 <th className="p-2 border">#</th>
                 <th className="p-2 border">Tên</th>
                 <th className="p-2 border">Tỷ lệ (%)</th>
-                <th className="p-2 border">Số lượng</th> {/* thêm cột */}
+                <th className="p-2 border">Số lượng</th>
                 <th className="p-2 border">Thao tác</th>
               </tr>
             </thead>
