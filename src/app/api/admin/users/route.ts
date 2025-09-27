@@ -1,109 +1,98 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { decrypt } from '@/lib/crypto';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { decrypt } from "@/lib/crypto";
 
 export async function GET(req: Request) {
   try {
-    // Lấy query params
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
     const skip = (page - 1) * limit;
 
-    // Lấy tổng số user
-    const totalUsers = await prisma.user.count();
+    // Chỉ lấy những lượt quay có prize (không rỗng)
+    const prizeFilter = { prize: { not: "" } };
 
-    // Lấy danh sách user theo trang
-    const users = await prisma.user.findMany({
+    // Tổng số winners
+    const totalWinners = await prisma.spinHistory.count({
+      where: prizeFilter,
+    });
+
+    // Lấy danh sách spinHistory theo phân trang
+    const histories = await prisma.spinHistory.findMany({
+      where: prizeFilter,
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        licensePlate2: true,
-        prize: true,
-        hasSpun: true,
-        createdAt: true,
-      },
+      orderBy: { createdAt: "desc" },
     });
 
-    
+    // Ghép thêm thông tin User cho từng lịch sử quay
+    const users = await Promise.all(
+      histories.map(async (h) => {
+        // Giải mã phone để hiển thị
+        let phone = "Không đọc được";
+        try {
+          phone = decrypt(h.phone);
+        } catch (err) {
+          console.warn(`❗ Không decrypt được phone ở spinHistory ID ${h.id}`);
+        }
 
-    // Giải mã dữ liệu
-    const decryptedUsers = users.map(user => {
-      let name = 'Không đọc được';
-      let phone = 'Không đọc được';
-      let licensePlate = 'Không đọc được';
-      
-      try {
-        if (user.name) name = decrypt(user.name);
-        if (user.phone) phone = decrypt(user.phone);
-        if (user.licensePlate2) licensePlate = user.licensePlate2;
-      } catch (err) {
-        console.warn(`❗ Không giải mã được user ID ${user.id}:`, err);
-      }
+        // Tìm user theo phone (encrypt gốc trong DB)
+        const user = await prisma.user.findUnique({
+          where: { phone: h.phone },
+        });
 
-    console.log("📌 Raw licensePlate2:", user.licensePlate2);
+        return {
+          id: h.id,
+          name: decrypt(user?.name ??'') ?? "Không rõ", // tên KH không mã hóa
+          phone, // số điện thoại đã decrypt để hiển thị
+          licensePlate: user?.licensePlate2 ?? h.plateNumber ?? "",
+          prize: h.prize,
+          hasSpun: user?.hasSpun ?? false,
+          createdAt: h.createdAt,
+        };
+      })
+    );
 
-
-      return {
-        id: user.id,
-        name,
-        phone,
-        licensePlate,
-        prize: user.prize,
-        hasSpun: user.hasSpun,
-        createdAt: user.createdAt,
-      };
-    });
-
-    // Thống kê winners
-    const winners = await prisma.user.count({
-      where: { prize: { not: null } },
-    });
-    const percent = totalUsers > 0 ? (winners / totalUsers) * 100 : 0;
-
-    // Thống kê prize
-    const prizeCounts = await prisma.user.groupBy({
-      by: ['prize'],
-      where: { prize: { not: null } },
-      _count: true,
+    // Thống kê số lượng từng loại prize
+    const prizeCounts = await prisma.spinHistory.groupBy({
+      by: ["prize"],
+      where: prizeFilter,
+      _count: { prize: true },
     });
 
     const prizeConfigs = await prisma.prizeConfig.findMany();
 
-    const detailedPrizes = prizeConfigs.map(config => {
-      const matched = prizeCounts.find(p => p.prize === config.name);
-      const used = matched?._count ?? 0;
+    const detailedPrizes = prizeConfigs.map((config) => {
+      const matched = prizeCounts.find((p) => p.prize === config.name);
+      const used = matched?._count.prize ?? 0;
       return {
         name: config.name,
         ratio: config.ratio,
-        total: used + config.quantity, // tổng ban đầu = đã dùng + còn lại
+        total: used + config.quantity, // tổng phát ban đầu
         used,
-        remaining: config.quantity, // còn lại
+        remaining: config.quantity,
       };
     });
 
-
+    // Trả kết quả JSON
     return NextResponse.json({
       pagination: {
         page,
         limit,
-        totalUsers,
-        totalPages: Math.ceil(totalUsers / limit),
+        totalUsers: totalWinners,
+        totalPages: Math.ceil(totalWinners / limit),
       },
-      winners,
-      percent: Math.round(percent * 100) / 100,
+      winners: totalWinners,
+      percent: totalWinners > 0 ? 100 : 0,
       prizeStats: detailedPrizes,
-      users: decryptedUsers,
+      users,
     });
   } catch (error) {
-    console.error('❌ Lỗi khi thống kê:', error);
+    console.error("❌ Lỗi khi thống kê winners:", error);
     return NextResponse.json(
-      { error: 'Server error', details: String(error) },
+      { error: "Server error", details: String(error) },
       { status: 500 }
     );
   }

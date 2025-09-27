@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
@@ -46,11 +47,17 @@ export async function POST(req: Request) {
     const { phone, deviceKey, plateNumber } = await req.json();
 
     if (!phone) {
-      return NextResponse.json({ success: false, message: 'Thiếu số điện thoại' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: 'Thiếu số điện thoại' },
+        { status: 400 }
+      );
     }
 
     if (!plateNumber) {
-      return NextResponse.json({ success: false, message: 'Thiếu biển số xe' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: 'Thiếu biển số xe' },
+        { status: 400 }
+      );
     }
 
     // Chuẩn hóa biển số xe
@@ -58,9 +65,14 @@ export async function POST(req: Request) {
     const encryptedPhone = encrypt(phone);
 
     // Kiểm tra user tồn tại
-    const user = await prisma.user.findUnique({ where: { phone: encryptedPhone } });
+    const user = await prisma.user.findUnique({
+      where: { phone: encryptedPhone },
+    });
     if (!user) {
-      return NextResponse.json({ success: false, message: 'Người dùng không tồn tại' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: 'Người dùng không tồn tại' },
+        { status: 404 }
+      );
     }
 
     // Ngày hiện tại theo giờ VN
@@ -87,7 +99,8 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         prize: spunToday?.prize || spunPlateToday?.prize,
-        message: 'Số điện thoại hoặc biển số xe này đã quay hôm nay, hãy quay lại vào ngày mai!',
+        message:
+          'Số điện thoại hoặc biển số xe này đã quay hôm nay, hãy quay lại vào ngày mai!',
         alreadySpun: true,
       });
     }
@@ -99,7 +112,10 @@ export async function POST(req: Request) {
     });
 
     if (!prizes || prizes.length === 0) {
-      return NextResponse.json({ success: false, message: 'Hết phần thưởng.' }, { status: 500 });
+      return NextResponse.json(
+        { success: false, message: 'Hết phần thưởng.' },
+        { status: 500 }
+      );
     }
 
     // Tạo mảng phần thưởng theo tỉ lệ
@@ -115,9 +131,11 @@ export async function POST(req: Request) {
 
     // Giảm số lượng phần thưởng trong transaction
     const updatedPrize = await prisma.$transaction(async (tx) => {
-      const prize = await tx.prizeConfig.findUnique({ where: { id: selected.id } });
+      const prize = await tx.prizeConfig.findUnique({
+        where: { id: selected.id },
+      });
       if (!prize || prize.quantity <= 0) {
-        throw new Error("Phần thưởng đã hết");
+        throw new Error('Phần thưởng đã hết');
       }
 
       return await tx.prizeConfig.update({
@@ -126,19 +144,16 @@ export async function POST(req: Request) {
       });
     });
 
-    // Nếu số lượng còn < 10 thì gửi mail cảnh báo
+    // Nếu số lượng còn ít thì gửi mail cảnh báo
     if (updatedPrize.quantity < 3) {
       await sendLowStockMail(updatedPrize.name, updatedPrize.quantity);
     }
 
-    // Cập nhật prize cho user
-    await prisma.user.update({
-      where: { phone: encryptedPhone },
-      data: { prize: updatedPrize.name },
-    });
-
-    // Lưu lịch sử quay
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
+    // Lưu lịch sử quay (KHÔNG update user.prize nữa)
+    const ip =
+      req.headers.get('x-forwarded-for') ||
+      req.headers.get('x-real-ip') ||
+      '';
     const userAgent = req.headers.get('user-agent') || '';
 
     await prisma.spinHistory.create({
@@ -159,7 +174,11 @@ export async function POST(req: Request) {
       message: 'Chúc mừng bạn đã quay thành công!',
     });
   } catch (error: any) {
-    console.error("🔥 Lỗi khi xử lý quay thưởng:", error);
-    return NextResponse.json({ success: false, message: error.message || 'Lỗi máy chủ' }, { status: 500 });
+    console.error('🔥 Lỗi khi xử lý quay thưởng:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Lỗi máy chủ' },
+      { status: 500 }
+    );
   }
 }
+

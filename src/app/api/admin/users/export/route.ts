@@ -1,51 +1,68 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { decrypt } from '@/lib/crypto';
-import ExcelJS from 'exceljs';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { decrypt } from "@/lib/crypto";
+import ExcelJS from "exceljs";
 
 export async function GET() {
   try {
-    // Lấy toàn bộ user
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
+    // 👉 Lấy tất cả lịch sử quay có prize
+    const histories = await prisma.spinHistory.findMany({
+      where: { prize: { not: "" } },
+      orderBy: { createdAt: "desc" },
     });
 
-    const decryptedUsers = users.map((user: { name: string; phone: string; id: any; prize: any; hasSpun: any; createdAt: any; licensePlate2: string | null }) => {
-      let name = 'Không đọc được';
-      let phone = 'Không đọc được';
+    // 👉 Map sang winners (join User qua phone ENCRYPTED)
+    const winners = await Promise.all(
+      histories.map(async (h) => {
+        // Giải mã phone để hiển thị
+        let phone = "Không đọc được";
+        try {
+          phone = decrypt(h.phone);
+        } catch (err) {
+          console.warn(`❗ Không giải mã được phone spinHistory ID ${h.id}:`, err);
+        }
 
-      try {
-        if (user.name) name = decrypt(user.name);
-        if (user.phone) phone = decrypt(user.phone);
-      } catch (err) {
-        console.warn(`❗ Không giải mã được user ID ${user.id}:`, err);
-      }
+        // Tìm user theo phone ENCRYPTED (giữ nguyên h.phone)
+        const user = await prisma.user.findUnique({
+          where: { phone: h.phone },
+        });
 
-      return {
-        id: user.id,
-        name,
-        phone,
-        prize: user.prize,
-        hasSpun: user.hasSpun ? '✅' : '❌',
-        createdAt: user.createdAt,
-        licensePlate: user.licensePlate2 ?? '—',
-      };
-    });
+        // Giải mã name
+        let name = "Không rõ";
+        try {
+          if (user?.name) {
+            name = decrypt(user.name);
+          }
+        } catch (err) {
+          console.warn(`❗ Không giải mã được name user ID ${user?.id}:`, err);
+        }
 
-    const prizeCounts = await prisma.user.groupBy({
-      by: ['prize'],
-      where: { prize: { not: null } },
-      _count: true,
+        return {
+          id: h.id,
+          name,
+          phone,
+          licensePlate: user?.licensePlate2 ?? h.plateNumber ?? "—",
+          prize: h.prize,
+          createdAt: h.createdAt,
+        };
+      })
+    );
+
+    // 👉 Thống kê giải thưởng
+    const prizeCounts = await prisma.spinHistory.groupBy({
+      by: ["prize"],
+      where: { prize: { not: "" } },
+      _count: { prize: true },
     });
 
     const prizeConfigs = await prisma.prizeConfig.findMany();
 
-    const detailedPrizes = prizeConfigs.map((config: { name: any; quantity: number; ratio: number }) => {
-      const matched = prizeCounts.find((p: { prize: any }) => p.prize === config.name);
-      const used = matched?._count ?? 0;
+    const detailedPrizes = prizeConfigs.map((config) => {
+      const matched = prizeCounts.find((p) => p.prize === config.name);
+      const used = matched?._count.prize ?? 0;
       const total = config.quantity ?? Math.floor(100 / config.ratio);
-      const remaining = total;
+      const remaining = total - used;
 
       return {
         name: config.name,
@@ -57,56 +74,54 @@ export async function GET() {
 
     // 👉 Tạo workbook Excel
     const workbook = new ExcelJS.Workbook();
-    const userSheet = workbook.addWorksheet('Người dùng');
-    const prizeSheet = workbook.addWorksheet('Thống kê giải thưởng');
+    const winnerSheet = workbook.addWorksheet("Danh sách trúng thưởng");
+    const prizeSheet = workbook.addWorksheet("Thống kê giải thưởng");
 
-    // Sheet user
-    userSheet.columns = [
-      { header: 'ID', key: 'id', width: 10 },
-      { header: 'Tên', key: 'name', width: 25 },
-      { header: 'SĐT', key: 'phone', width: 20 },
-      { header: 'Biển số xe', key: 'licensePlate', width: 15 }, // thêm cột biển số xe
-      { header: 'Phần thưởng', key: 'prize', width: 25 },
-      { header: 'Đã quay', key: 'hasSpun', width: 10 },
-      { header: 'Ngày tham gia', key: 'createdAt', width: 25 },
+    // Sheet winners
+    winnerSheet.columns = [
+      { header: "ID", key: "id", width: 10 },
+      { header: "Tên", key: "name", width: 25 },
+      { header: "SĐT", key: "phone", width: 20 },
+      { header: "Biển số xe", key: "licensePlate", width: 20 },
+      { header: "Phần thưởng", key: "prize", width: 25 },
+      { header: "Ngày tham gia", key: "createdAt", width: 25 },
     ];
 
-    decryptedUsers.forEach((u: { id: any; name: any; phone: any; prize: any; hasSpun: any; createdAt: string | number | Date; licensePlate: string }) =>
-      userSheet.addRow({
-        id: u.id,
-        name: u.name,
-        phone: u.phone,
-        licensePlate: u.licensePlate,
-        prize: u.prize ?? '—',
-        hasSpun: u.hasSpun,
-        createdAt: new Date(u.createdAt).toLocaleString('vi-VN'),
+    winners.forEach((w) =>
+      winnerSheet.addRow({
+        id: w.id,
+        name: w.name,
+        phone: w.phone,
+        licensePlate: w.licensePlate,
+        prize: w.prize,
+        createdAt: new Date(w.createdAt).toLocaleString("vi-VN"),
       })
     );
 
     // Sheet thống kê prize
     prizeSheet.columns = [
-      { header: 'Tên', key: 'name', width: 25 },
-      { header: 'Tỷ lệ (%)', key: 'ratio', width: 15 },
-      { header: 'Đã trúng', key: 'used', width: 15 },
-      { header: 'Còn lại', key: 'remaining', width: 15 },
+      { header: "Tên", key: "name", width: 25 },
+      { header: "Tỷ lệ (%)", key: "ratio", width: 15 },
+      { header: "Đã trúng", key: "used", width: 15 },
+      { header: "Còn lại", key: "remaining", width: 15 },
     ];
-    detailedPrizes.forEach((p: any) => prizeSheet.addRow(p));
+    detailedPrizes.forEach((p) => prizeSheet.addRow(p));
 
-    // Xuất file buffer
+    // 👉 Xuất file buffer
     const buffer = await workbook.xlsx.writeBuffer();
 
     return new NextResponse(buffer, {
       status: 200,
       headers: {
-        'Content-Disposition': `attachment; filename="report.xlsx"`,
-        'Content-Type':
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        "Content-Disposition": `attachment; filename="winners.xlsx"`,
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       },
     });
   } catch (error: any) {
-    console.error('❌ Lỗi khi export Excel:', error);
+    console.error("❌ Lỗi khi export Excel:", error);
     return NextResponse.json(
-      { error: 'Server error', details: String(error) },
+      { error: "Server error", details: String(error) },
       { status: 500 }
     );
   }
