@@ -43,12 +43,12 @@ export default function PrizeSpinClient() {
   const [showCongrats, setShowCongrats] = useState(false)
   const [stars, setStars] = useState<StarData[]>([])
   const [confetti, setConfetti] = useState<ConfettiData[]>([])
-    const [loadingPrizes, setLoadingPrizes] = useState(true) // <- thêm state
+  const [loadingPrizes, setLoadingPrizes] = useState(true) // <- thêm state
 
   const router = useRouter()
 
   // Load danh sách phần thưởng
- useEffect(() => {
+  useEffect(() => {
     const fetchPrizes = async () => {
       try {
         const res = await fetch("/api/admin/prizes")
@@ -90,21 +90,21 @@ export default function PrizeSpinClient() {
   }, [showCongrats])
 
   // Thêm vào trong component PrizeSpinClient
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-     if (spinning || openModalPrize || openAlreadySpunModal) return // chặn bấm khi đang quay hoặc modal mở
-          if (loadingPrizes || prizes.length === 0) return // <- chặn khi chưa load xong
-    if (e.code === "Enter" || e.code === "Space") {
-      e.preventDefault() // tránh scroll khi nhấn space
-      spin()
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (spinning || openModalPrize || openAlreadySpunModal) return // chặn bấm khi đang quay hoặc modal mở
+      if (loadingPrizes || prizes.length === 0) return // <- chặn khi chưa load xong
+      if (e.code === "Enter" || e.code === "Space") {
+        e.preventDefault() // tránh scroll khi nhấn space
+        spin()
+      }
     }
-  }
 
-  window.addEventListener("keydown", handleKeyDown)
-  return () => {
-    window.removeEventListener("keydown", handleKeyDown)
-  }
-}, [spinning, phone, prizes]) // phụ thuộc spinning để cập nhật trạng thái mới
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [spinning, phone, prizes]) // phụ thuộc spinning để cập nhật trạng thái mới
 
   const spin = async () => {
     if (spinning || !phone) return
@@ -199,7 +199,7 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
-      <button   onClick={() => router.push("/")}  className="absolute animate-bounce top-20 left-20 h-16 w-16 z-20">
+      <button onClick={() => router.push("/")} className="absolute animate-bounce top-20 left-20 h-16 w-16 z-20">
         <img src="https://png.pngtree.com/png-clipart/20241019/original/pngtree-3d-home-icon-png-image_16400302.png" alt="" />
       </button>
 
