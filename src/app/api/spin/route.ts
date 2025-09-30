@@ -1,4 +1,3 @@
-
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
@@ -64,10 +63,23 @@ export async function POST(req: Request) {
     const normalizedPlate = plateNumber.trim().toUpperCase();
     const encryptedPhone = encrypt(phone);
 
-    // Kiểm tra user tồn tại
-    const user = await prisma.user.findUnique({
-      where: { phone: encryptedPhone },
+    // --- Sửa ở đây: findFirst thay vì findUnique ---
+    // Tìm user theo phone (encrypted) hoặc theo licensePlate2
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: encryptedPhone },
+          { licensePlate2: normalizedPlate },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        licensePlate2: true,
+      },
     });
+
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'Người dùng không tồn tại' },
@@ -121,10 +133,18 @@ export async function POST(req: Request) {
     // Tạo mảng phần thưởng theo tỉ lệ
     const weighted: { id: number; name: string }[] = [];
     prizes.forEach((p: { ratio: number; id: number; name: string }) => {
-      for (let i = 0; i < p.ratio; i++) {
+      const times = Math.max(0, Math.floor(p.ratio)); // đảm bảo số nguyên >= 0
+      for (let i = 0; i < times; i++) {
         weighted.push({ id: p.id, name: p.name });
       }
     });
+
+    if (weighted.length === 0) {
+      return NextResponse.json(
+        { success: false, message: 'Không có phần thưởng hợp lệ để chọn.' },
+        { status: 500 }
+      );
+    }
 
     // Chọn ngẫu nhiên phần thưởng
     const selected = weighted[Math.floor(Math.random() * weighted.length)];
@@ -181,4 +201,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

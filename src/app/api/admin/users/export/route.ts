@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -12,21 +13,27 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    // 👉 Map sang winners (join User qua phone ENCRYPTED)
+    // 👉 Map sang winners (join User qua licensePlate2)
     const winners = await Promise.all(
       histories.map(async (h) => {
-        // Giải mã phone để hiển thị
+        // Giải mã phone trong spinHistory (để hiển thị nếu có)
         let phone = "Không đọc được";
         try {
-          phone = decrypt(h.phone);
+          if (h.phone) {
+            phone = decrypt(h.phone);
+          }
         } catch (err) {
-          console.warn(`❗ Không giải mã được phone spinHistory ID ${h.id}:`, err);
+          console.warn(`❗ Không giải mã được phone spinHistory ID ${h.id}`);
         }
 
-        // Tìm user theo phone ENCRYPTED (giữ nguyên h.phone)
-        const user = await prisma.user.findUnique({
-          where: { phone: h.phone },
-        });
+        // 🔹 Luôn join user theo biển số
+        let user = null;
+        if (h.plateNumber) {
+          user = await prisma.user.findFirst({
+            where: { licensePlate2: h.plateNumber },
+            select: { id: true, name: true, phone: true, licensePlate2: true },
+          });
+        }
 
         // Giải mã name
         let name = "Không rõ";
@@ -35,14 +42,24 @@ export async function GET() {
             name = decrypt(user.name);
           }
         } catch (err) {
-          console.warn(`❗ Không giải mã được name user ID ${user?.id}:`, err);
+          console.warn(`❗ Không giải mã được name user ID ${user?.id}`);
+        }
+
+        // Giải mã phone từ user (ưu tiên user.phone, fallback sang spinHistory.phone)
+        let displayPhone = phone;
+        try {
+          if (user?.phone) {
+            displayPhone = decrypt(user.phone);
+          }
+        } catch {
+          // fallback đã có
         }
 
         return {
           id: h.id,
           name,
-          phone,
-          licensePlate: user?.licensePlate2 ?? h.plateNumber ?? "—",
+          phone: displayPhone,
+          licensePlate: h.plateNumber ?? user?.licensePlate2 ?? "—",
           prize: h.prize,
           createdAt: h.createdAt,
         };
@@ -61,14 +78,13 @@ export async function GET() {
     const detailedPrizes = prizeConfigs.map((config) => {
       const matched = prizeCounts.find((p) => p.prize === config.name);
       const used = matched?._count.prize ?? 0;
-      const total = config.quantity ?? Math.floor(100 / config.ratio);
-      const remaining = total - used;
 
       return {
         name: config.name,
         ratio: config.ratio,
+        total: config.quantity,
         used,
-        remaining,
+        remaining: config.quantity - used,
       };
     });
 
@@ -102,6 +118,7 @@ export async function GET() {
     prizeSheet.columns = [
       { header: "Tên", key: "name", width: 25 },
       { header: "Tỷ lệ (%)", key: "ratio", width: 15 },
+      { header: "Tổng số", key: "total", width: 15 },
       { header: "Đã trúng", key: "used", width: 15 },
       { header: "Còn lại", key: "remaining", width: 15 },
     ];

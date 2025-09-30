@@ -11,15 +11,15 @@ export async function GET(req: Request) {
     const limit = parseInt(searchParams.get("limit") || "20", 10);
     const skip = (page - 1) * limit;
 
-    // Chỉ lấy những lượt quay có prize (không rỗng)
+    // 👉 Chỉ lấy những lượt quay có prize (không rỗng)
     const prizeFilter = { prize: { not: "" } };
 
-    // Tổng số winners
+    // 👉 Tổng số winners
     const totalWinners = await prisma.spinHistory.count({
       where: prizeFilter,
     });
 
-    // Lấy danh sách spinHistory theo phân trang
+    // 👉 Lấy danh sách spinHistory theo phân trang
     const histories = await prisma.spinHistory.findMany({
       where: prizeFilter,
       skip,
@@ -27,10 +27,9 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Ghép thêm thông tin User cho từng lịch sử quay
+    // 👉 Ghép thêm thông tin User cho từng lịch sử quay (theo biển số)
     const users = await Promise.all(
       histories.map(async (h) => {
-        // Giải mã phone để hiển thị
         let phone = "Không đọc được";
         try {
           phone = decrypt(h.phone);
@@ -38,16 +37,19 @@ export async function GET(req: Request) {
           console.warn(`❗ Không decrypt được phone ở spinHistory ID ${h.id}`);
         }
 
-        // Tìm user theo phone (encrypt gốc trong DB)
-        const user = await prisma.user.findUnique({
-          where: { phone: h.phone },
-        });
+        // 🔹 Luôn tìm user theo biển số
+        let user = null;
+        if (h.plateNumber) {
+          user = await prisma.user.findFirst({
+            where: { licensePlate2: h.plateNumber },
+          });
+        }
 
         return {
           id: h.id,
-          name: decrypt(user?.name ??'') ?? "Không rõ", // tên KH không mã hóa
-          phone, // số điện thoại đã decrypt để hiển thị
-          licensePlate: user?.licensePlate2 ?? h.plateNumber ?? "",
+          name: user?.name ? decrypt(user.name) : "Không rõ",
+          phone: user?.phone ? decrypt(user.phone) : phone,
+          licensePlate: h.plateNumber ?? user?.licensePlate2 ?? "",
           prize: h.prize,
           hasSpun: user?.hasSpun ?? false,
           createdAt: h.createdAt,
@@ -55,7 +57,7 @@ export async function GET(req: Request) {
       })
     );
 
-    // Thống kê số lượng từng loại prize
+    // 👉 Thống kê số lượng từng loại prize
     const prizeCounts = await prisma.spinHistory.groupBy({
       by: ["prize"],
       where: prizeFilter,
@@ -70,13 +72,13 @@ export async function GET(req: Request) {
       return {
         name: config.name,
         ratio: config.ratio,
-        total: used + config.quantity, // tổng phát ban đầu
+        total: config.quantity, // tổng số giải ban đầu từ config
         used,
-        remaining: config.quantity,
+        remaining: (config.quantity ?? 0) - used,
       };
     });
 
-    // Trả kết quả JSON
+    // 👉 Trả kết quả JSON
     return NextResponse.json({
       pagination: {
         page,

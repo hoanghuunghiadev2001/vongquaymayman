@@ -14,42 +14,34 @@ export async function POST(req: Request) {
   try {
     const { name, phone, licensePlate } = await req.json();
 
-    // Bắt buộc phải có ít nhất phone hoặc biển số xe
-    if (!phone && !licensePlate) {
+    // Bắt buộc phải có biển số xe
+    if (!licensePlate) {
       return NextResponse.json(
-        { allowed: false, message: 'Phải nhập số điện thoại hoặc biển số xe!' },
+        { allowed: false, message: 'Phải nhập biển số xe!' },
         { status: 400 }
       );
     }
 
-    // Mã hóa phone và name, chuẩn hóa biển số xe thành chữ hoa
+    // Chuẩn hóa + mã hóa
     const encryptedPhone = phone ? encrypt(phone) : null;
     const encryptedName = name ? encrypt(name) : null;
-    const normalizedPlate = licensePlate ? licensePlate.toUpperCase() : null;
+    const normalizedPlate = licensePlate.trim().toUpperCase();
 
-    // Tìm user theo biển số hoặc phone
+    // Tìm user theo biển số xe
     let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          ...(encryptedPhone ? [{ phone: encryptedPhone }] : []),
-          ...(normalizedPlate ? [{ licensePlate2: normalizedPlate }] : []),
-        ],
-      },
+      where: { licensePlate2: normalizedPlate },
     });
 
     // Ngày hôm nay theo múi giờ VN
     const startOfDay = dayjs().tz('Asia/Ho_Chi_Minh').startOf('day').toDate();
     const endOfDay = dayjs().tz('Asia/Ho_Chi_Minh').endOf('day').toDate();
 
-    // Nếu user đã tồn tại → kiểm tra đã quay trong ngày chưa
+    // Nếu user đã tồn tại → kiểm tra đã quay trong ngày chưa (chỉ theo biển số)
     if (user) {
       const spunToday = await prisma.spinHistory.findFirst({
         where: {
+          plateNumber: normalizedPlate,
           createdAt: { gte: startOfDay, lte: endOfDay },
-          OR: [
-            ...(user.phone ? [{ phone: user.phone }] : []),
-            ...(user.licensePlate2 ? [{ plateNumber: user.licensePlate2 }] : []),
-          ],
         },
       });
 
@@ -57,7 +49,7 @@ export async function POST(req: Request) {
         return NextResponse.json(
           {
             allowed: false,
-            message: 'Số điện thoại hoặc biển số xe đã quay thưởng hôm nay!',
+            message: 'Biển số xe này đã quay thưởng hôm nay!',
           },
           { status: 400 }
         );
@@ -68,7 +60,7 @@ export async function POST(req: Request) {
         data: {
           name: encryptedName ?? 'Người dùng',
           phone: encryptedPhone ?? '',
-          licensePlate2: normalizedPlate ?? '',
+          licensePlate2: normalizedPlate,
           hasSpun: false,
         },
       });
