@@ -84,7 +84,7 @@ export async function GET() {
         ratio: config.ratio,
         total: config.quantity,
         used,
-        remaining: config.quantity - used,
+        remaining: config.quantity + used,
       };
     });
 
@@ -95,7 +95,6 @@ export async function GET() {
 
     // Sheet winners
     winnerSheet.columns = [
-      { header: "ID", key: "id", width: 10 },
       { header: "Tên", key: "name", width: 25 },
       { header: "SĐT", key: "phone", width: 20 },
       { header: "Biển số xe", key: "licensePlate", width: 20 },
@@ -117,10 +116,9 @@ export async function GET() {
     // Sheet thống kê prize
     prizeSheet.columns = [
       { header: "Tên", key: "name", width: 25 },
-      { header: "Tỷ lệ (%)", key: "ratio", width: 15 },
-      { header: "Tổng số", key: "total", width: 15 },
+      { header: "Còn lại", key: "total", width: 15 },
       { header: "Đã trúng", key: "used", width: 15 },
-      { header: "Còn lại", key: "remaining", width: 15 },
+      { header: "Tổng số", key: "remaining", width: 15 },
     ];
     detailedPrizes.forEach((p) => prizeSheet.addRow(p));
 

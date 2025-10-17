@@ -6,11 +6,12 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:spin": "ts-node --transpile-only scripts/test-spin.ts"
   },
-"prisma": {
-  "seed": "node prisma/seed.js"
-},
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "dependencies": {
     "@lottiefiles/react-lottie-player": "^3.6.0",
     "@prisma/client": "^6.16.2",
@@ -52,6 +53,7 @@
     "prisma": "^6.9.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5.9.2"
   }
