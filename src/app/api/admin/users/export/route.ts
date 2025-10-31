@@ -5,6 +5,16 @@ import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import ExcelJS from "exceljs";
 
+// 🔹 Hàm chuẩn hóa tên phần thưởng
+function normalizePrizeName(name: string): string {
+  return name
+    .normalize("NFD") // tách dấu tiếng Việt
+    .replace(/[\u0300-\u036f]/g, "") // xóa dấu
+    .replace(/\s+/g, "") // bỏ khoảng trắng
+    .toLowerCase()
+    .trim();
+}
+
 export async function GET() {
   try {
     // 👉 Lấy tất cả lịch sử quay có prize
@@ -16,13 +26,11 @@ export async function GET() {
     // 👉 Map sang winners (join User qua licensePlate2)
     const winners = await Promise.all(
       histories.map(async (h) => {
-        // Giải mã phone trong spinHistory (để hiển thị nếu có)
+        // Giải mã phone trong spinHistory
         let phone = "Không đọc được";
         try {
-          if (h.phone) {
-            phone = decrypt(h.phone);
-          }
-        } catch (err) {
+          if (h.phone) phone = decrypt(h.phone);
+        } catch {
           console.warn(`❗ Không giải mã được phone spinHistory ID ${h.id}`);
         }
 
@@ -38,19 +46,15 @@ export async function GET() {
         // Giải mã name
         let name = "Không rõ";
         try {
-          if (user?.name) {
-            name = decrypt(user.name);
-          }
-        } catch (err) {
+          if (user?.name) name = decrypt(user.name);
+        } catch {
           console.warn(`❗ Không giải mã được name user ID ${user?.id}`);
         }
 
-        // Giải mã phone từ user (ưu tiên user.phone, fallback sang spinHistory.phone)
+        // Giải mã phone từ user (ưu tiên user.phone)
         let displayPhone = phone;
         try {
-          if (user?.phone) {
-            displayPhone = decrypt(user.phone);
-          }
+          if (user?.phone) displayPhone = decrypt(user.phone);
         } catch {
           // fallback đã có
         }
@@ -66,25 +70,57 @@ export async function GET() {
       })
     );
 
-    // 👉 Thống kê giải thưởng
-    const prizeCounts = await prisma.spinHistory.groupBy({
-      by: ["prize"],
+    // 👉 Gom thống kê phần thưởng (normalize để gộp tên trùng)
+    const spinPrizes = await prisma.spinHistory.findMany({
       where: { prize: { not: "" } },
-      _count: { prize: true },
+      select: { prize: true },
     });
+
+    const prizeCountsMap: Record<string, number> = {};
+    const originalNamesMap: Record<string, string> = {};
+
+    for (const { prize } of spinPrizes) {
+      if (!prize) continue;
+      const normalized = normalizePrizeName(prize);
+      prizeCountsMap[normalized] = (prizeCountsMap[normalized] || 0) + 1;
+      if (!originalNamesMap[normalized]) {
+        originalNamesMap[normalized] = prize.trim();
+      }
+    }
 
     const prizeConfigs = await prisma.prizeConfig.findMany();
 
-    const detailedPrizes = prizeConfigs.map((config) => {
-      const matched = prizeCounts.find((p) => p.prize === config.name);
-      const used = matched?._count.prize ?? 0;
+    // 👉 Hợp nhất các phần thưởng từ cả config và lịch sử
+    const allPrizeNames = Array.from(
+      new Set([
+        ...Object.keys(prizeCountsMap),
+        ...prizeConfigs.map((c) => normalizePrizeName(c.name)),
+      ])
+    );
+
+    const detailedPrizes = allPrizeNames.map((normalizedName) => {
+      const used = prizeCountsMap[normalizedName] ?? 0;
+      const matchedConfig = prizeConfigs.find(
+        (c) => normalizePrizeName(c.name) === normalizedName
+      );
+
+      const displayName =
+        matchedConfig?.name ??
+        originalNamesMap[normalizedName] ??
+        normalizedName;
+
+      const total = matchedConfig?.quantity
+        ? matchedConfig?.quantity + used
+        : used;
+
+      const ratio = matchedConfig?.ratio ?? null;
 
       return {
-        name: config.name,
-        ratio: config.ratio,
-        total: config.quantity,
+        name: displayName,
+        ratio,
+        total,
         used,
-        remaining: config.quantity + used,
+        remaining: matchedConfig?.quantity ?? 0,
       };
     });
 
@@ -104,7 +140,6 @@ export async function GET() {
 
     winners.forEach((w) =>
       winnerSheet.addRow({
-        id: w.id,
         name: w.name,
         phone: w.phone,
         licensePlate: w.licensePlate,
@@ -115,11 +150,13 @@ export async function GET() {
 
     // Sheet thống kê prize
     prizeSheet.columns = [
-      { header: "Tên", key: "name", width: 25 },
-      { header: "Còn lại", key: "total", width: 15 },
-      { header: "Đã trúng", key: "used", width: 15 },
-      { header: "Tổng số", key: "remaining", width: 15 },
+      { header: "Phần thưởng", key: "name", width: 25 },
+      { header: "Tỉ lệ (%)", key: "ratio", width: 10 },
+      { header: "Số lượng ban đầu", key: "total", width: 18 },
+      { header: "Đã trúng", key: "used", width: 12 },
+      { header: "Còn lại", key: "remaining", width: 12 },
     ];
+
     detailedPrizes.forEach((p) => prizeSheet.addRow(p));
 
     // 👉 Xuất file buffer
